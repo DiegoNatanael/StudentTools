@@ -9,32 +9,35 @@ MODEL_NAME = 'glm-4.5-flash'
 
 PROMPTS = {
     "Flowchart": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid flowchart code.
+You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
 ALWAYS start with 'flowchart TD'.
-Use EXACTLY this syntax for nodes:
-    ID@{ shape: NAME, label: "Text" }
-- Replace ID with a short identifier (A, B, Step1, etc.)
-- Replace NAME with one of: rect, diam, circle, lean-r, lean-l, cyl, trapezoid, stadium, fork, etc.
-- Replace "Text" with a descriptive label in double quotes
-- ALWAYS include BOTH shape and label
-- NO spaces before colons
-- NO trailing commas
-- NO extra braces
+Use these node types:
+- A["Process"] = rectangle
+- B{"Decision"} = diamond
+- C(("Start/End")) = circle
+- D[/"Input"\\] = trapezoid (manual input)
+- E[\\"Output"/] = inverted trapezoid (manual output)
+- F[("Database")] = cylinder
+- G[[Subroutine]] = subroutine
 
 Example:
 flowchart TD
-    A@{ shape: circle, label: "Start" } --> B@{ shape: diam, label: "Is user logged in?" }
-    B -->|"Yes"| C@{ shape: rect, label: "Show Dashboard" }
-    B -->|"No"| D@{ shape: lean-r, label: "Enter Credentials" }
+    A(("Start")) --> B{"Is user logged in?"}
+    B -->|"Yes"| C["Show Dashboard"]
+    B -->|"No"| D[/"Enter Credentials"\\]
+    D --> E["Validate"]
+    E --> B
+    C --> F(("End"))
 
 Now generate a flowchart for:
 {description}
 
 RULES:
 - Output ONLY raw Mermaid code — no markdown, no explanations
-- Every node MUST use the @{{ shape: ..., label: ... }} syntax
-- Never omit the label
-- Never use old syntax like ["Text"] or {{"Text"}}
+- Every node must have an ID (A, B, Step1, etc.)
+- Use double quotes inside brackets/braces: ["Text"], {"Text"}
+- NEVER use new syntax like A@{{ shape: ... }}
+- ALWAYS include 'flowchart TD' header
 """,
 
     "Sequence Diagram": """
@@ -406,7 +409,7 @@ def extract_mermaid_code(text: str) -> str:
         return text
     
     raise ValueError(f"Invalid Mermaid code. Got: {repr(text)}")
-    
+
 
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
     if not api_key:
