@@ -13,19 +13,19 @@ You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid flowchart code.
 CRITICAL: The code MUST start with 'flowchart TD'.
 
 Use these node types and syntax precisely:
-- Rectangle: A["Process text"]
-- Diamond: B{"Decision text"}
-- Circle / Start/End: C(("Start or End"))
-- Trapezoid / Input: D[/Input text\\]
-- Inverse Trapezoid / Output: E[\Output text/]
+- Rectangle: A[Process text]
+- Diamond: B{Decision text}
+- Circle / Start/End: C((Start or End))
+- Trapezoid / Input: D[/Input text/]
+- Inverse Trapezoid / Output: E[\\Output text\\]
 
 Example:
 flowchart TD
-    A(("Start")) --> B{"Is user valid?"}
-    B -->|"Yes"| C["Show dashboard"]
-    B -->|"No"| D[/Redirect to login page\\]
+    A((Start)) --> B{Is user valid?}
+    B -->|Yes| C[Show dashboard]
+    B -->|No| D[/Redirect to login page/]
     D --> A
-    C --> F(("End"))
+    C --> F((End))
 
 Now generate a complete flowchart for:
 {description}
@@ -179,7 +179,7 @@ quadrantChart
     quadrant-2 Need to promote
     quadrant-3 Re-evaluate
     quadrant-4 May be improved
-    "Product A": [0.7, 0.8]
+    Product A: [0.7, 0.8]
 
 Now generate a quadrant chart for:
 {description}
@@ -213,16 +213,16 @@ The code must start with 'sankey-beta'.
 
 Example:
 sankey-beta
-    A --> 10 B
-    A --> 20 C
-    B --> 5 D
+    Budget,Marketing,1000
+    Budget,Development,2000
+    Marketing,Online Ads,600
 
 Now generate a Sankey diagram for:
 {description}
 
 RULES:
 - Output ONLY raw Mermaid code. No explanations.
-- Format is Source --> value Target.
+- Format is Source,Target,Value
 """,
 
     "XY Chart": """
@@ -231,18 +231,17 @@ The code must start with 'xychart-beta'.
 
 Example:
 xychart-beta
-    title Sales vs Profit
-    x-axis "Sales"
-    y-axis "Profit"
-    series "2024"
-    series "2025"
+    title Sales Trend
+    x-axis [Jan, Feb, Mar, Apr, May]
+    y-axis "Revenue" 0 --> 100
+    line [20, 45, 60, 55, 80]
 
 Now generate an XY chart for:
 {description}
 
 RULES:
 - Output ONLY raw Mermaid code. No explanations.
-- Define title, x-axis, y-axis, and series.
+- Define title, x-axis, y-axis, and data.
 """,
 
     "Block Diagram": """
@@ -251,17 +250,18 @@ The code must start with 'block-beta'.
 
 Example:
 block-beta
-    Columns 2
-    ItemA
-    ItemB
-    ItemC
+    columns 3
+    Frontend Backend Database
+    API["API Layer"]
+    Frontend --> API
+    API --> Backend
 
 Now generate a block diagram for:
 {description}
 
 RULES:
 - Output ONLY raw Mermaid code. No explanations.
-- Start with 'Columns N'.
+- Define columns first.
 """,
 
     "Kanban": """
@@ -270,18 +270,18 @@ The code must start with 'kanban'.
 
 Example:
 kanban
-    section To Do
-      Task 1
-      Task 2
-    section In Progress
-      Task 3
+    Todo
+        Task 1
+        Task 2
+    In Progress
+        Task 3
 
 Now generate a Kanban board for:
 {description}
 
 RULES:
 - Output ONLY raw Mermaid code. No explanations.
-- Use 'section' headers for columns.
+- Use column names followed by indented tasks.
 """,
 
     "GitGraph": """
@@ -311,18 +311,18 @@ The code must start with 'mindmap'. DO NOT use ::icon() syntax.
 
 Example:
 mindmap
-    root((Project))
-        Planning
-            Goals
-            Timeline
-        Execution
+  root((Project))
+    Planning
+      Goals
+      Timeline
+    Execution
 
 Now generate a mindmap for:
 {description}
 
 RULES:
 - Output ONLY raw Mermaid code. No explanations.
-- Indent with 4 spaces per level.
+- Indent with 2 spaces per level.
 - DO NOT use ::icon() syntax.
 """,
 }
@@ -330,16 +330,15 @@ RULES:
 def extract_mermaid_code(text: str) -> str:
     """
     Finds and extracts the first valid Mermaid code block from a string.
-    Handles markdown code fences and introductory text from the AI.
     """
     text = text.strip()
     
-    # First, try to find a markdown block
+    # Try markdown block first
     match = re.search(r"```(?:mermaid)?\n(.*?)```", text, re.DOTALL)
     if match:
         return match.group(1).strip()
 
-    # If no markdown, find the first line that starts with a valid keyword
+    # Find line starting with valid keyword
     lines = text.split('\n')
     valid_starts = (
         "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
@@ -349,17 +348,14 @@ def extract_mermaid_code(text: str) -> str:
     
     start_index = -1
     for i, line in enumerate(lines):
-        # Use strip() to handle potential leading whitespace
         if line.strip().startswith(valid_starts):
             start_index = i
             break
             
     if start_index != -1:
-        # Rejoin the lines from the start of the found code
         return '\n'.join(lines[start_index:]).strip()
 
-    # If no valid code is found at all, raise an error.
-    raise ValueError(f"Could not find a valid Mermaid diagram in the AI response. Got: {repr(text[:200])}")
+    raise ValueError(f"Could not find valid Mermaid diagram. Got: {repr(text[:200])}")
 
 
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
@@ -379,7 +375,7 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
     payload = {
         'model': MODEL_NAME,
         'messages': [
-            {"role": "system", "content": "You are a Mermaid.js expert. You output ONLY raw, valid Mermaid code without any extra text, explanations, or markdown fences."},
+            {"role": "system", "content": "You are a Mermaid.js expert. Output ONLY raw, valid Mermaid code without any extra text or markdown fences."},
             {"role": "user", "content": prompt}
         ]
     }
@@ -390,18 +386,21 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
             response.raise_for_status()
 
             data = response.json()
-            # Ensure we safely access the content, providing a default empty string
-            ai_response = data.get('choices', [{}]).get('message', {}).get('content', '')
+            
+            # FIX: Properly access the nested structure
+            choices = data.get('choices', [])
+            if not choices:
+                raise ValueError("API returned no choices")
+            
+            message = choices[0].get('message', {})
+            ai_response = message.get('content', '').strip()
 
-            if not ai_response.strip():
+            if not ai_response:
                 raise ValueError("Empty response from AI model.")
 
-            # Use the new, robust extraction function
             return extract_mermaid_code(ai_response)
 
         except ValueError as e:
-            # This catches parsing errors from extract_mermaid_code
-            raise ConnectionError(f"AI returned invalid or incomplete Mermaid code. Details: {e}")
+            raise ConnectionError(f"AI returned invalid Mermaid code: {e}")
         except Exception as e:
-            # This catches network errors or other API failures
-            raise ConnectionError(f"AI API communication failed: {e}")
+            raise ConnectionError(f"AI API failed: {e}")
