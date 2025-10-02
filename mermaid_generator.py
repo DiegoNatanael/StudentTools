@@ -99,17 +99,38 @@ RULES:
 You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid ER diagram code.
 The code must start with 'erDiagram'.
 
+Relationship syntax:
+- One to one: ||--||
+- One to many: ||--o{{
+- Many to one: }}o--||
+- Many to many: }}o--o{{
+
+Attributes syntax:
+ENTITY {{
+    type attributeName
+}}
+
 Example:
 erDiagram
-    CUSTOMER ||--o{ ORDER : places
-    ORDER ||--|{ LINE-ITEM : contains
+    CUSTOMER ||--o{{ ORDER : places
+    ORDER ||--|{{ LINE-ITEM : contains
+    PRODUCT ||--o{{ LINE-ITEM : "ordered in"
+    CUSTOMER {{
+        int id
+        string name
+        string email
+    }}
+    ORDER {{
+        int orderID
+        date orderDate
+    }}
 
 Now generate an ER diagram for:
 {description}
 
 RULES:
 - Output ONLY raw Mermaid code. No explanations.
-- Use crow's foot notation.
+- Use crow's foot notation correctly.
 """,
 
     "User Journey": """
