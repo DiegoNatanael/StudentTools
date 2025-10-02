@@ -12,28 +12,27 @@ PROMPTS = {
 You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid flowchart code.
 CRITICAL: The code MUST start with 'flowchart TD'.
 
-Use these node types and syntax precisely:
-- Rectangle: A[Process text]
-- Diamond: B{Decision text}
-- Circle / Start/End: C((Start or End))
-- Trapezoid / Input: D[/Input text/]
-- Inverse Trapezoid / Output: E[\\Output text\\]
+Use these node types WITHOUT quotes inside brackets:
+- Rectangle: A[Process step here]
+- Diamond: B{Is this valid}
+- Circle: C((Start))
+- Rounded: D(Action)
 
 Example:
 flowchart TD
-    A((Start)) --> B{Is user valid?}
+    A((Start)) --> B{Is user valid}
     B -->|Yes| C[Show dashboard]
-    B -->|No| D[/Redirect to login page/]
+    B -->|No| D[Redirect to login]
     D --> A
     C --> F((End))
 
-Now generate a complete flowchart for:
-{description}
+Now generate a flowchart for: {description}
 
-RULES:
-- Output ONLY the raw Mermaid code.
-- DO NOT include markdown like ```mermaid or explanations.
-- Ensure every node has a unique ID (e.g., A, B, C1).
+CRITICAL RULES:
+- NO quotes inside node text: WRONG {{"text"}}, CORRECT {{text}}
+- NO special characters like ? ! inside curly braces
+- Use simple text only
+- Output ONLY raw Mermaid code
 """,
 
     "Sequence Diagram": """
@@ -131,21 +130,25 @@ RULES:
 
     "Gantt": """
 You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid Gantt chart code.
-The code must start with 'gantt'.
+The code must start with 'gantt' and include 'dateFormat YYYY-MM-DD'.
 
 Example:
 gantt
     dateFormat YYYY-MM-DD
-    section Project Planning
-    Task A :a1, 2025-10-01, 5d
-    Task B :after a1, 3d
+    title Project Schedule
+    section Phase 1
+    Task A :a1, 2025-01-01, 5d
+    Task B :a2, after a1, 3d
+    section Phase 2
+    Task C :a3, after a2, 4d
 
-Now generate a Gantt chart for:
-{description}
+Now generate a Gantt chart for: {description}
 
-RULES:
-- Output ONLY raw Mermaid code. No explanations.
-- Always include 'dateFormat'.
+CRITICAL RULES:
+- Every task MUST have a unique ID like :a1, :a2, :a3
+- Use 'after taskID' or specific dates
+- NO spaces in task IDs
+- Output ONLY raw Mermaid code
 """,
 
     "Pie Chart": """
@@ -358,6 +361,53 @@ def extract_mermaid_code(text: str) -> str:
     raise ValueError(f"Could not find valid Mermaid diagram. Got: {repr(text[:200])}")
 
 
+def sanitize_mermaid_code(code: str, diagram_type: str) -> str:
+    """
+    Clean up common Mermaid syntax errors that AIs make.
+    """
+    # Remove any remaining markdown fences
+    code = re.sub(r"```(?:mermaid)?", "", code).strip()
+    
+    # Fix flowchart issues: remove quotes inside curly braces and brackets
+    if diagram_type == "Flowchart":
+        # Remove quotes from decision nodes: {"text"} -> {text}
+        code = re.sub(r'\{([^}]*)"([^"}]*)"\}', r'{\1\2}', code)
+        code = re.sub(r'\{([^}]*)"([^"}]*)"\}', r'{\1\2}', code)  # Run twice for nested
+        
+        # Remove question marks and special chars from decision nodes
+        code = re.sub(r'\{([^}]*)\?\}', r'{\1}', code)
+        code = re.sub(r'\{([^}]*)!\}', r'{\1}', code)
+    
+    # Fix Gantt chart task IDs
+    if diagram_type == "Gantt":
+        # Replace invalid 'after taskName' with valid IDs
+        lines = code.split('\n')
+        fixed_lines = []
+        task_counter = 1
+        
+        for line in lines:
+            # If it's a task line without proper ID, add one
+            if ':' in line and 'section' not in line.lower() and not re.search(r':[a-zA-Z0-9_]+,', line):
+                # Add task ID after the colon
+                line = re.sub(r':(\s*)((?:after|des|active)\s+[^,]+|[\d-]+)', rf':task{task_counter}, \2', line)
+                task_counter += 1
+            fixed_lines.append(line)
+        
+        code = '\n'.join(fixed_lines)
+    
+    # Remove any trailing explanatory text
+    lines = code.split('\n')
+    clean_lines = []
+    for line in lines:
+        # Stop if we hit explanatory text
+        if line.strip().lower().startswith(('note:', 'explanation:', 'this diagram', 'the above')):
+            break
+        clean_lines.append(line)
+    
+    return '\n'.join(clean_lines).strip()
+
+
+
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
     if not api_key:
         raise ValueError("User did not provide an API Key.")
@@ -398,7 +448,12 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
             if not ai_response:
                 raise ValueError("Empty response from AI model.")
 
-            return extract_mermaid_code(ai_response)
+            mermaid_code = extract_mermaid_code(ai_response)
+            
+            # Sanitize the code to fix common AI mistakes
+            mermaid_code = sanitize_mermaid_code(mermaid_code, diagram_type)
+            
+            return mermaid_code
 
         except ValueError as e:
             raise ConnectionError(f"AI returned invalid Mermaid code: {e}")
