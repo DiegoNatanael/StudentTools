@@ -15,8 +15,8 @@ Use these node types:
 - A["Process"] = rectangle
 - B{"Decision"} = diamond
 - C(("Start/End")) = circle
-- D[/"Input"\\] = trapezoid (manual input)
-- E[\\"Output"/] = inverted trapezoid (manual output)
+- D[/Input\\] = trapezoid (manual input)
+- E[\Output/] = inverted trapezoid (manual output)
 - F[("Database")] = cylinder
 - G[[Subroutine]] = subroutine
 
@@ -24,7 +24,7 @@ Example:
 flowchart TD
     A(("Start")) --> B{"Is user logged in?"}
     B -->|"Yes"| C["Show Dashboard"]
-    B -->|"No"| D[/"Enter Credentials"\\]
+    B -->|"No"| D[/Enter Credentials\\]
     D --> E["Validate"]
     E --> B
     C --> F(("End"))
