@@ -17,12 +17,19 @@ app = FastAPI(title="AI Studio Backend Services")
 # This allows your local file/server (e.g., http://127.0.0.1:5500) to communicate with 
 # your remote Render backend.
 # IMPORTANT: "*" allows ALL origins.
-origins = ["*"] 
+# Only allow your real frontend origin
+origins = [
+    "https://student-tools-front-end.vercel.app/",
+    "https://www.student-tools-front-end.vercel.app/",  # if you use www
+    # Add localhost for local dev (optional)
+    "http://localhost:5173",   # if using Vite
+    "http://127.0.0.1:5500",   # if still using Live Server during dev
+]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
