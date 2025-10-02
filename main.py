@@ -13,9 +13,7 @@ from mermaid_generator import generate_mermaid_code
 app = FastAPI(title="AI Studio Backend Services")
 
 # --- CORRECT CORS MIDDLEWARE CONFIGURATION ---
-# ✅ NO trailing spaces in origins
-# ✅ NO manual @app.options route
-# ✅ allow_credentials=False (required when using specific origins)
+
 origins = [
     "https://student-tools-front-end.vercel.app",
     "https://www.student-tools-front-end.vercel.app",
@@ -55,9 +53,6 @@ async def serve_index():
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="index.html not found.")
 
-# ❌ REMOVED: Manual @app.options route — it breaks CORS middleware
-
-# --- NEW: Mermaid Diagram Generator Endpoint (BYOK) ---
 @app.post("/api/generate/diagram", summary="Generate Mermaid.js Code via AI (BYOK)")
 async def generate_diagram_endpoint(request: DiagramRequest):
     """
