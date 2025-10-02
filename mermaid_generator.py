@@ -9,30 +9,33 @@ MODEL_NAME = 'glm-4.5-flash'
 
 PROMPTS = {
     "Flowchart": """
-You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid flowchart code.
-CRITICAL: The code MUST start with 'flowchart TD'.
+You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
+Start with 'flowchart TD'.
 
-Use these node types WITHOUT quotes inside brackets:
-- Rectangle: A[Process step here]
-- Diamond: B{Is this valid}
-- Circle: C((Start))
-- Rounded: D(Action)
+Valid node shapes:
+- Rectangle: A[Process]
+- Rounded: B(Action)
+- Stadium: C([Start/End])
+- Diamond: D{{Decision}}
+- Circle: E((Point))
+
+CRITICAL: For diamond decision nodes, use DOUBLE curly braces {{text}}
 
 Example:
 flowchart TD
-    A((Start)) --> B{Is user valid}
-    B -->|Yes| C[Show dashboard]
-    B -->|No| D[Redirect to login]
-    D --> A
-    C --> F((End))
+    A([Start]) --> B[Get input]
+    B --> C{{Valid}}
+    C -->|Yes| D[Process]
+    C -->|No| E[Error]
+    D --> F([End])
+    E --> B
 
-Now generate a flowchart for: {description}
+Generate a flowchart for: {description}
 
-CRITICAL RULES:
-- NO quotes inside node text: WRONG {{"text"}}, CORRECT {{text}}
-- NO special characters like ? ! inside curly braces
-- Use simple text only
-- Output ONLY raw Mermaid code
+Rules:
+- Use {{double braces}} for diamonds
+- Keep text simple, no special characters
+- Output ONLY code, no explanations
 """,
 
     "Sequence Diagram": """
@@ -368,19 +371,20 @@ def sanitize_mermaid_code(code: str, diagram_type: str) -> str:
     # Remove any remaining markdown fences
     code = re.sub(r"```(?:mermaid)?", "", code).strip()
     
-    # Fix flowchart issues: remove quotes inside curly braces and brackets
+    # Fix flowchart issues
     if diagram_type == "Flowchart":
-        # Remove quotes from decision nodes: {"text"} -> {text}
-        code = re.sub(r'\{([^}]*)"([^"}]*)"\}', r'{\1\2}', code)
-        code = re.sub(r'\{([^}]*)"([^"}]*)"\}', r'{\1\2}', code)  # Run twice for nested
+        # Convert single braces {text} to double braces {{text}} for diamonds
+        # Match {text} that's not already {{text}}
+        code = re.sub(r'(?<!\{)\{([^{}]+)\}(?!\})', r'{{\1}}', code)
         
-        # Remove question marks and special chars from decision nodes
-        code = re.sub(r'\{([^}]*)\?\}', r'{\1}', code)
-        code = re.sub(r'\{([^}]*)!\}', r'{\1}', code)
+        # Remove quotes from inside any braces
+        code = re.sub(r'\{\{([^}]*)"([^"}]*)"([^}]*)\}\}', r'{{\1\2\3}}', code)
+        
+        # Remove question marks and exclamation marks
+        code = re.sub(r'\{\{([^}]*)[?!]([^}]*)\}\}', r'{{\1\2}}', code)
     
     # Fix Gantt chart task IDs
     if diagram_type == "Gantt":
-        # Replace invalid 'after taskName' with valid IDs
         lines = code.split('\n')
         fixed_lines = []
         task_counter = 1
