@@ -10,15 +10,35 @@ MODEL_NAME = 'glm-4.5-flash'
 PROMPTS = {
     "Flowchart": """
 You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
-Use 'flowchart TD' as the header.
-Example:
+ALWAYS start with 'flowchart TD' (or 'flowchart LR' if horizontal flow is implied).
+Use proper node syntax with escaped labels:
+- [\"Text\"] = rectangle (process)
+- {\"Text\"} = diamond (decision)
+- ((\"Text\")) = circle (start/stop)
+- [/\"Text\"\\] = trapezoid (manual input)
+- [\\\"Text\"/] = inverted trapezoid (manual output)
+- [((\"Text\"))] = subroutine
+- [\"Text\"] = document
+- [(\"Database\")] = cylinder
+
+Example of a complete flowchart:
 flowchart TD
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Action 1]
-    B -->|No| D[Action 2]
+    A((\"Start\")) --> B{\"Is user logged in?\"}
+    B -->|\"Yes\"| C[\"Show Dashboard\"]
+    B -->|\"No\"| D[/\"Enter Credentials\"\\]
+    D --> E[\"Validate\"]
+    E --> B
+    C --> F(((\"End\")))
 
 Now generate a flowchart for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code — no markdown, no explanations
+- Every node must have an ID (e.g., A, B, Step1)
+- Use escaped quotes: \"{Text}\" for all labels
+- Never output just a single word like 'Decision'
+- Always include the 'flowchart TD' header
 """,
 
     "Sequence Diagram": """
@@ -33,6 +53,11 @@ sequenceDiagram
 
 Now generate a sequence diagram for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- No markdown, no explanations
+- Start with 'sequenceDiagram'
 """,
 
     "Class Diagram": """
@@ -49,6 +74,11 @@ classDiagram
 
 Now generate a class diagram for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Use UML visibility (+, -, #, ~)
+- Include relationships if implied
 """,
 
     "State Diagram": """
@@ -62,6 +92,11 @@ stateDiagram-v2
 
 Now generate a state diagram for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Use [*] for start, [*] for end
+- Transitions use colon syntax: A --> B : label
 """,
 
     "ER Diagram": """
@@ -74,6 +109,11 @@ erDiagram
 
 Now generate an ER diagram for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Use crow's foot notation (||, }|, o{, etc.)
+- Entity names in ALL CAPS preferred
 """,
 
     "User Journey": """
@@ -89,6 +129,11 @@ journey
 
 Now generate a user journey for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Include 'title' and 'section'
+- Format: "Task name: score: actor"
 """,
 
     "Gantt": """
@@ -103,6 +148,11 @@ gantt
 
 Now generate a Gantt chart for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Always include 'dateFormat'
+- Use IDs (a1, b1) for task references
 """,
 
     "Pie Chart": """
@@ -116,6 +166,11 @@ pie
 
 Now generate a pie chart for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Labels in double quotes
+- Values must be positive numbers
 """,
 
     "Quadrant Chart": """
@@ -135,6 +190,11 @@ quadrantChart
 
 Now generate a quadrant chart for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Define x-axis, y-axis, and all 4 quadrants
+- Data points as [x, y] with quoted labels
 """,
 
     "Timeline": """
@@ -149,6 +209,11 @@ timeline
 
 Now generate a timeline for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Dates in YYYY-MM or YYYY-MM-DD format
+- Use colon to separate date and event
 """,
 
     "Sankey": """
@@ -163,6 +228,11 @@ sankey-beta
 
 Now generate a Sankey diagram for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Format: Source --> value Target
+- Values must be numbers
 """,
 
     "XY Chart": """
@@ -178,6 +248,11 @@ xychart-beta
 
 Now generate an XY chart for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Define title, x-axis, y-axis
+- Use 'series "Label" [values...]'
 """,
 
     "Block Diagram": """
@@ -193,6 +268,11 @@ block-beta
 
 Now generate a block diagram for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Start with 'Columns N' (N = number of columns)
+- One item per line
 """,
 
     "Kanban": """
@@ -210,6 +290,11 @@ kanban
 
 Now generate a Kanban board for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Use 'section SectionName' headers
+- Tasks as indented lines under sections
 """,
 
     "GitGraph": """
@@ -226,6 +311,11 @@ gitGraph
 
 Now generate a git graph for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Use commands: commit, branch, checkout, merge
+- No quotes or extra syntax
 """,
 
     "Mindmap": """
@@ -243,58 +333,53 @@ mindmap
 
 Now generate a mindmap for:
 {description}
+
+RULES:
+- Output ONLY raw Mermaid code
+- Indent with 4 spaces per level
+- DO NOT use ::icon() or any icon syntax
+- Use ((root)) for central node if needed
 """,
 }
 
-def build_diagram_prompt(diagram_type: str, description: str) -> str:
-    """Instructs the AI model to generate Mermaid.js code."""
-    diagram_instructions = {
-        'Flowchart': 'Create a flowchart using "graph TD" syntax.',
-        'Sequence Diagram': 'Create a sequence diagram using "sequenceDiagram" syntax.',
-        'Mindmap': 'Create a mind map using "mindmap" syntax. DO NOT use any ::icon() syntax.',
-        'Class Diagram': 'Create a class diagram using "classDiagram" syntax.',
-        'State Diagram': 'Create a state diagram using "stateDiagram-v2" syntax.',
-        'ER Diagram': 'Create an entity relationship diagram using "erDiagram" syntax.',
-        'User Journey': 'Create a user journey diagram using "journey" syntax.',
-        'Gantt': 'Create a Gantt chart using "gantt" syntax.',
-        'Pie Chart': 'Create a pie chart using "pie" syntax.',
-        'Quadrant Chart': 'Create a quadrant chart using "quadrantChart" syntax.',
-        'Timeline': 'Create a timeline using "timeline" syntax.',
-        'Sankey': 'Create a Sankey diagram using "sankey-beta" syntax.',
-        'XY Chart': 'Create an XY chart using "xychart-beta" syntax.',
-        'Block Diagram': 'Create a block diagram using "block-beta" syntax.',
-        'Kanban': 'Create a Kanban board using "kanban" syntax.',
-        'GitGraph': 'Create a git graph using "gitGraph" syntax.',
-    }
-
-    instruction = diagram_instructions.get(diagram_type, 'Create a diagram')
-    
-    return f"""You are a Mermaid.js expert. {instruction}
-
-Based on this description: "{description}"
-
-IMPORTANT: 
-- Output ONLY the raw Mermaid.js code
-- No markdown code blocks
-- No explanations
-- Start directly with the diagram type keyword"""
-
 def extract_mermaid_code(text: str) -> str:
-    """Extracts raw Mermaid code from a potentially markdown-wrapped response."""
-    match = re.search(r"```mermaid\n([\s\S]*?)\n```", text)
-    if match:
-        return match.group(1).strip()
+    text = text.strip()
+    # Remove markdown code blocks
+    if text.startswith("```"):
+        lines = text.split("\n")
+        in_mermaid = False
+        code_lines = []
+        for line in lines:
+            if line.startswith("```mermaid"):
+                in_mermaid = True
+                continue
+            elif line.startswith("```"):
+                if in_mermaid:
+                    break
+                else:
+                    continue
+            elif in_mermaid:
+                code_lines.append(line)
+        if code_lines:
+            return "\n".join(code_lines).strip()
     
-    diagram_keywords = r"^(mindmap|graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|gitGraph|C4Context|timeline|sankey-beta|xychart-beta|block-beta|packet-beta|kanban|quadrantChart)"
-    direct_match = re.search(diagram_keywords + r"[\s\S]*", text)
-    return direct_match.group(0).strip() if direct_match else text.strip()
+    # If no code block, assume raw code — but ensure it starts with a valid keyword
+    valid_starts = (
+        "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
+        "erDiagram", "journey", "gantt", "pie", "quadrantChart", "mindmap",
+        "timeline", "gitGraph", "sankey-beta", "xychart-beta", "block-beta", "kanban"
+    )
+    if text and any(text.lstrip().startswith(kw) for kw in valid_starts):
+        return text
+    
+    # Fallback: return as-is
+    return text
 
 
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
     if not api_key:
         raise ValueError("User did not provide an API Key.")
 
-    # Get the correct prompt
     base_prompt = PROMPTS.get(diagram_type)
     if not base_prompt:
         raise ValueError(f"Unsupported diagram type: {diagram_type}")
