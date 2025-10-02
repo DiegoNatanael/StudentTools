@@ -9,70 +9,60 @@ MODEL_NAME = 'glm-4.5-flash'
 
 PROMPTS = {
     "Flowchart": """
-You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
-ALWAYS start with 'flowchart TD'.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid flowchart code.
+CRITICAL: The code MUST start with 'flowchart TD'.
 
 Use these node types and syntax precisely:
-- Process: A["Process text"]
-- Decision: B{"Decision text"}
-- Start/End: C(("Start or End"))
-- Input: D[/Input text\\]
-- Output: E[\Output text/]
-- Database: F[("Database text")]
-- Subroutine: G[[Subroutine text]]
+- Rectangle: A["Process text"]
+- Diamond: B{"Decision text"}
+- Circle / Start/End: C(("Start or End"))
+- Trapezoid / Input: D[/Input text\\]
+- Inverse Trapezoid / Output: E[\Output text/]
 
 Example:
 flowchart TD
-    A(("Start")) --> B{"Is user logged in?"}
-    B -->|"Yes"| C["Show Dashboard"]
-    B -->|"No"| D[/Enter Credentials\\]
-    D --> E["Validate"]
-    E --> B
+    A(("Start")) --> B{"Is user valid?"}
+    B -->|"Yes"| C["Show dashboard"]
+    B -->|"No"| D[/Redirect to login page\\]
+    D --> A
     C --> F(("End"))
 
-Now generate a flowchart for:
+Now generate a complete flowchart for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code — no markdown, no explanations.
-- Every node must have an ID (A, B, Step1, etc.).
-- Use double quotes for Process and Decision nodes: ["Text"], {"Text"}.
-- DO NOT use quotes for Input/Output nodes: [/Text\\], [\Text/].
-- ALWAYS include 'flowchart TD' header.
+- Output ONLY the raw Mermaid code.
+- DO NOT include markdown like ```mermaid or explanations.
+- Ensure every node has a unique ID (e.g., A, B, C1).
 """,
 
-    # ... other diagram prompts remain unchanged ...
     "Sequence Diagram": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid sequence diagram code.
-Use 'sequenceDiagram' as the header.
-Use participants with IDs and arrows with labels.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid sequence diagram code.
+The code must start with 'sequenceDiagram'.
 
 Example:
 sequenceDiagram
     participant User
     participant App
-    User->>App: Login
-    App-->>User: Success
+    User->>App: Login Request
+    App-->>User: Authentication Success
 
 Now generate a sequence diagram for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Define participants before using them
-- Use ->>, -->>, etc. for arrows
+- Output ONLY raw Mermaid code. No explanations.
+- Define participants before using them.
 """,
 
     "Class Diagram": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid class diagram code.
-Use 'classDiagram' as the header.
-Use UML syntax with visibility (+, -, #) and relationships.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid class diagram code.
+The code must start with 'classDiagram'.
 
 Example:
 classDiagram
     class Animal {
         +String name
-        +int age
         +makeSound()
     }
     Animal <|-- Dog
@@ -81,15 +71,13 @@ Now generate a class diagram for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Use +, -, # for visibility
-- Include relationships if implied
+- Output ONLY raw Mermaid code. No explanations.
+- Use +, -, # for visibility.
 """,
 
     "State Diagram": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid state diagram code.
-Use 'stateDiagram-v2' as the header.
-Use [*] for start/end, and transitions with colon syntax.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid state diagram code.
+The code must start with 'stateDiagram-v2'.
 
 Example:
 stateDiagram-v2
@@ -101,15 +89,13 @@ Now generate a state diagram for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Use [*] for start/end
-- Transitions use colon syntax: A --> B : label
+- Output ONLY raw Mermaid code. No explanations.
+- Use [*] for start/end states.
 """,
 
     "ER Diagram": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid ER diagram code.
-Use 'erDiagram' as the header.
-Use crow's foot notation (||, }|, o{, etc.).
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid ER diagram code.
+The code must start with 'erDiagram'.
 
 Example:
 erDiagram
@@ -120,15 +106,13 @@ Now generate an ER diagram for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Use crow's foot notation
-- Entity names in ALL CAPS preferred
+- Output ONLY raw Mermaid code. No explanations.
+- Use crow's foot notation.
 """,
 
     "User Journey": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid user journey code.
-Use 'journey' as the header.
-Include 'title' and 'section', format: "Task name: score: actor".
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid user journey code.
+The code must start with 'journey'.
 
 Example:
 journey
@@ -136,26 +120,23 @@ journey
     section Authentication
       Enter credentials: 5: User
       Submit form: 3: User
-      Validate: 4: System
 
 Now generate a user journey for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Include 'title' and 'section'
-- Format: "Task name: score: actor"
+- Output ONLY raw Mermaid code. No explanations.
+- Include 'title' and 'section' headers.
 """,
 
     "Gantt": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid Gantt chart code.
-Use 'gantt' as the header. Include 'dateFormat YYYY-MM-DD'.
-Use IDs (a1, b1) for task references.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid Gantt chart code.
+The code must start with 'gantt'.
 
 Example:
 gantt
     dateFormat YYYY-MM-DD
-    section Project
+    section Project Planning
     Task A :a1, 2025-10-01, 5d
     Task B :after a1, 3d
 
@@ -163,36 +144,31 @@ Now generate a Gantt chart for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Always include 'dateFormat'
-- Use IDs for task references
+- Output ONLY raw Mermaid code. No explanations.
+- Always include 'dateFormat'.
 """,
 
     "Pie Chart": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid pie chart code.
-Use 'pie' as the header. Labels in double quotes, followed by colon and number.
-Optionally use 'showData' to render values.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid pie chart code.
+The code must start with 'pie'.
 
 Example:
 pie showData
     title Pets adopted by volunteers
     "Dogs" : 386
     "Cats" : 85
-    "Rats" : 15
 
 Now generate a pie chart for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Labels in double quotes
-- Values must be positive numbers
+- Output ONLY raw Mermaid code. No explanations.
+- Labels must be in double quotes.
 """,
 
     "Quadrant Chart": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid quadrant chart code.
-Use 'quadrantChart' as the header.
-Define x-axis, y-axis, and all 4 quadrants.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid quadrant chart code.
+The code must start with 'quadrantChart'.
 
 Example:
 quadrantChart
@@ -204,107 +180,93 @@ quadrantChart
     quadrant-3 Re-evaluate
     quadrant-4 May be improved
     "Product A": [0.7, 0.8]
-    "Product B": [0.3, 0.4]
 
 Now generate a quadrant chart for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Define x-axis, y-axis, and all 4 quadrants
-- Data points as [x, y] with quoted labels
+- Output ONLY raw Mermaid code. No explanations.
+- Define x-axis, y-axis, and all quadrants.
 """,
 
     "Timeline": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid timeline code.
-Use 'timeline' as the header.
-Dates in YYYY-MM or YYYY-MM-DD format.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid timeline code.
+The code must start with 'timeline'.
 
 Example:
 timeline
     title Project Timeline
     2025-01 : Kickoff
     2025-02 : Design phase
-    2025-03 : Development
 
 Now generate a timeline for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Dates in YYYY-MM or YYYY-MM-DD format
-- Use colon to separate date and event
+- Output ONLY raw Mermaid code. No explanations.
+- Use YYYY-MM or YYYY-MM-DD for dates.
 """,
 
     "Sankey": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid Sankey diagram code.
-Use 'sankey-beta' as the header.
-Format: Source --> value Target
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid Sankey diagram code.
+The code must start with 'sankey-beta'.
 
 Example:
 sankey-beta
     A --> 10 B
     A --> 20 C
     B --> 5 D
-    C --> 15 D
 
 Now generate a Sankey diagram for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Format: Source --> value Target
-- Values must be numbers
+- Output ONLY raw Mermaid code. No explanations.
+- Format is Source --> value Target.
 """,
 
     "XY Chart": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid XY chart code.
-Use 'xychart-beta' as the header.
-Define title, x-axis, y-axis, and series.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid XY chart code.
+The code must start with 'xychart-beta'.
 
 Example:
 xychart-beta
     title Sales vs Profit
-    x-axis Sales
-    y-axis Profit
-    series "2024" [10, 20, 30, 40]
-    series "2025" [15, 25, 35, 45]
+    x-axis "Sales"
+    y-axis "Profit"
+    series "2024"
+    series "2025"
 
 Now generate an XY chart for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Define title, x-axis, y-axis
-- Use 'series "Label" [values...]'
+- Output ONLY raw Mermaid code. No explanations.
+- Define title, x-axis, y-axis, and series.
 """,
 
     "Block Diagram": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid block diagram code.
-Use 'block-beta' as the header.
-Start with 'Columns N', one item per line.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid block diagram code.
+The code must start with 'block-beta'.
 
 Example:
 block-beta
     Columns 2
-    Item A
-    Item B
-    Item C
-    Item D
+    ItemA
+    ItemB
+    ItemC
 
 Now generate a block diagram for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Start with 'Columns N'
-- One item per line
+- Output ONLY raw Mermaid code. No explanations.
+- Start with 'Columns N'.
 """,
 
     "Kanban": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid Kanban board code.
-Use 'kanban' as the header.
-Use 'section SectionName' headers.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid Kanban board code.
+The code must start with 'kanban'.
 
 Example:
 kanban
@@ -313,22 +275,18 @@ kanban
       Task 2
     section In Progress
       Task 3
-    section Done
-      Task 4
 
 Now generate a Kanban board for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Use 'section SectionName' headers
-- Tasks as indented lines under sections
+- Output ONLY raw Mermaid code. No explanations.
+- Use 'section' headers for columns.
 """,
 
     "GitGraph": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid git graph code.
-Use 'gitGraph' as the header.
-Use commands: commit, branch, checkout, merge.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid git graph code.
+The code must start with 'gitGraph'.
 
 Example:
 gitGraph
@@ -343,15 +301,13 @@ Now generate a git graph for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Use commands: commit, branch, checkout, merge
-- No quotes or extra syntax
+- Output ONLY raw Mermaid code. No explanations.
+- Use commands: commit, branch, checkout, merge.
 """,
 
     "Mindmap": """
-You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid mindmap code.
-Use 'mindmap' as the header. DO NOT use ::icon() syntax.
-Use indentation for hierarchy.
+You are a Mermaid.js v11+ expert. Generate ONLY valid Mermaid mindmap code.
+The code must start with 'mindmap'. DO NOT use ::icon() syntax.
 
 Example:
 mindmap
@@ -360,64 +316,51 @@ mindmap
             Goals
             Timeline
         Execution
-            Tasks
-            Resources
 
 Now generate a mindmap for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code
-- Indent with 4 spaces per level
-- DO NOT use ::icon() or any icon syntax
-- Use ((root)) for central node if needed
+- Output ONLY raw Mermaid code. No explanations.
+- Indent with 4 spaces per level.
+- DO NOT use ::icon() syntax.
 """,
 }
 
 def extract_mermaid_code(text: str) -> str:
+    """
+    Finds and extracts the first valid Mermaid code block from a string.
+    Handles markdown code fences and introductory text from the AI.
+    """
     text = text.strip()
     
-    # Remove markdown code blocks
-    if text.startswith("```"):
-        lines = text.split("\n")
-        in_mermaid = False
-        code_lines = []
-        for line in lines:
-            if line.startswith("```mermaid"):
-                in_mermaid = True
-                continue
-            elif line.startswith("```"):
-                if in_mermaid:
-                    break
-                else:
-                    continue
-            elif in_mermaid:
-                code_lines.append(line)
-        if code_lines:
-            text = "\n".join(code_lines).strip()
-    
-    # FIXED: More flexible validation for flowchart syntax
-    if text.startswith("flowchart"):
-        # Allow both old and new syntax - don't be too strict
-        # Just ensure it starts with flowchart and has valid structure
-        pass  # Remove the strict validation that was causing errors
-    
+    # First, try to find a markdown block
+    match = re.search(r"```(?:mermaid)?\n(.*?)```", text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+
+    # If no markdown, find the first line that starts with a valid keyword
+    lines = text.split('\n')
     valid_starts = (
         "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
         "erDiagram", "journey", "gantt", "pie", "quadrantChart", "mindmap",
         "timeline", "gitGraph", "sankey-beta", "xychart-beta", "block-beta", "kanban"
     )
     
-    # FIXED: Better validation that doesn't fail on valid Mermaid code
-    if text and any(text.lstrip().startswith(kw) for kw in valid_starts):
-        return text
-    
-    # If we get here and the text looks like it might be Mermaid code, return it anyway
-    # This is more permissive to avoid breaking valid diagrams
-    if any(keyword in text.lower() for keyword in ['-->', '->>', 'participant', 'class', 'state']):
-        return text
-    
-    raise ValueError(f"Invalid Mermaid code. Got: {repr(text[:100])}")  # Show only first 100 chars
+    start_index = -1
+    for i, line in enumerate(lines):
+        # Use strip() to handle potential leading whitespace
+        if line.strip().startswith(valid_starts):
+            start_index = i
+            break
+            
+    if start_index != -1:
+        # Rejoin the lines from the start of the found code
+        return '\n'.join(lines[start_index:]).strip()
+
+    # If no valid code is found at all, raise an error.
+    raise ValueError(f"Could not find a valid Mermaid diagram in the AI response. Got: {repr(text[:200])}")
+
 
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
     if not api_key:
@@ -436,7 +379,7 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
     payload = {
         'model': MODEL_NAME,
         'messages': [
-            {"role": "system", "content": "You output ONLY raw Mermaid code. No explanations, no markdown, no extra text."},
+            {"role": "system", "content": "You are a Mermaid.js expert. You output ONLY raw, valid Mermaid code without any extra text, explanations, or markdown fences."},
             {"role": "user", "content": prompt}
         ]
     }
@@ -447,12 +390,18 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
             response.raise_for_status()
 
             data = response.json()
-            ai_response = data.get('choices', [{}]).get('message', {}).get('content', '').strip()
+            # Ensure we safely access the content, providing a default empty string
+            ai_response = data.get('choices', [{}]).get('message', {}).get('content', '')
 
-            if not ai_response:
+            if not ai_response.strip():
                 raise ValueError("Empty response from AI model.")
 
+            # Use the new, robust extraction function
             return extract_mermaid_code(ai_response)
 
+        except ValueError as e:
+            # This catches parsing errors from extract_mermaid_code
+            raise ConnectionError(f"AI returned invalid or incomplete Mermaid code. Details: {e}")
         except Exception as e:
+            # This catches network errors or other API failures
             raise ConnectionError(f"AI API communication failed: {e}")
