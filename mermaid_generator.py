@@ -344,6 +344,7 @@ RULES:
 
 def extract_mermaid_code(text: str) -> str:
     text = text.strip()
+    
     # Remove markdown code blocks
     if text.startswith("```"):
         lines = text.split("\n")
@@ -361,19 +362,20 @@ def extract_mermaid_code(text: str) -> str:
             elif in_mermaid:
                 code_lines.append(line)
         if code_lines:
-            return "\n".join(code_lines).strip()
+            text = "\n".join(code_lines).strip()
     
-    # If no code block, assume raw code — but ensure it starts with a valid keyword
+    # ✅ CRITICAL: Only accept if it starts with a valid Mermaid keyword
     valid_starts = (
         "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
         "erDiagram", "journey", "gantt", "pie", "quadrantChart", "mindmap",
         "timeline", "gitGraph", "sankey-beta", "xychart-beta", "block-beta", "kanban"
     )
+    
     if text and any(text.lstrip().startswith(kw) for kw in valid_starts):
         return text
     
-    # Fallback: return as-is
-    return text
+    # ❌ If it's just "Text" or "Decision", reject it
+    raise ValueError(f"Invalid Mermaid code: does not start with a valid diagram keyword. Got: {repr(text)}")
 
 
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
@@ -409,7 +411,18 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
             if not ai_response:
                 raise ValueError("Empty response from AI model.")
 
-            return extract_mermaid_code(ai_response)
+            # 🔥 LOG THE RAW AI RESPONSE (for debugging)
+            print(f"AI RAW RESPONSE for {diagram_type}:")
+            print(repr(ai_response))  # This shows quotes, newlines, etc.
+
+            mermaid_code = extract_mermaid_code(ai_response)
+
+            if not mermaid_code:
+                raise ValueError("No valid Mermaid code extracted from AI response.")
+
+            return mermaid_code
 
         except Exception as e:
+            # 🔥 Include the raw response in the error
+            raise ConnectionError(f"AI API failed. Raw response: {ai_response}. Error: {e}")
             raise ConnectionError(f"AI API communication failed: {e}")
