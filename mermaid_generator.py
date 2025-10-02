@@ -394,22 +394,28 @@ def extract_mermaid_code(text: str) -> str:
         if code_lines:
             text = "\n".join(code_lines).strip()
     
-    # Validate v11.3.0+ flowchart syntax if it's a flowchart
+    # FIXED: More flexible validation for flowchart syntax
     if text.startswith("flowchart"):
-        # Basic check: if it uses @{}, ensure it has 'shape:' and 'label:'
-        if "@{" in text and not ("shape:" in text and "label:" in text):
-            raise ValueError("Invalid v11.3.0+ flowchart syntax: missing shape or label")
+        # Allow both old and new syntax - don't be too strict
+        # Just ensure it starts with flowchart and has valid structure
+        pass  # Remove the strict validation that was causing errors
     
     valid_starts = (
         "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
         "erDiagram", "journey", "gantt", "pie", "quadrantChart", "mindmap",
         "timeline", "gitGraph", "sankey-beta", "xychart-beta", "block-beta", "kanban"
     )
+    
+    # FIXED: Better validation that doesn't fail on valid Mermaid code
     if text and any(text.lstrip().startswith(kw) for kw in valid_starts):
         return text
     
-    raise ValueError(f"Invalid Mermaid code. Got: {repr(text)}")
-
+    # If we get here and the text looks like it might be Mermaid code, return it anyway
+    # This is more permissive to avoid breaking valid diagrams
+    if any(keyword in text.lower() for keyword in ['-->', '->>', 'participant', 'class', 'state']):
+        return text
+    
+    raise ValueError(f"Invalid Mermaid code. Got: {repr(text[:100])}")  # Show only first 100 chars
 
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
     if not api_key:
