@@ -1,12 +1,11 @@
-# mermaid_generator.py
-
 import httpx
 import re
 from typing import Optional
 
-API_URL = 'https://api.z.ai/api/paas/v4/chat/completions'
+API_URL = 'https://api.z.ai/api/paas/v4/chat/completions  '
 MODEL_NAME = 'glm-4.5-flash'
 
+# --- YOUR ORIGINAL PROMPTS DICT (UNCHANGED) ---
 PROMPTS = {
     "Flowchart": """
 You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
@@ -353,6 +352,8 @@ RULES:
 - DO NOT use ::icon() syntax.
 """,
 }
+# --- END OF YOUR ORIGINAL PROMPTS (UNCHANGED) ---
+
 
 def extract_mermaid_code(text: str) -> str:
     """
@@ -432,16 +433,87 @@ def sanitize_mermaid_code(code: str, diagram_type: str) -> str:
     return '\n'.join(clean_lines).strip()
 
 
+# --- NEW: Prompt Scoring & Refinement System ---
+async def score_prompt(api_key: str, user_input: str) -> int:
+    """Score prompt quality from 0 (very vague) to 10 (detailed and clear)."""
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {api_key}'
+    }
+    payload = {
+        'model': MODEL_NAME,
+        'messages': [
+            {"role": "system", "content": "You are a prompt quality evaluator. Respond ONLY with an integer from 0 to 10."},
+            {"role": "user", "content": f"Score this prompt for generating an educational diagram: '{user_input}'"}
+        ]
+    }
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(API_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+        score_text = data['choices'][0]['message']['content'].strip()
+        try:
+            return max(0, min(10, int(re.search(r'\d+', score_text).group())))
+        except:
+            return 3  # default low score if parsing fails
+
+
+async def refine_prompt(api_key: str, user_input: str) -> str:
+    """Rewrite a vague prompt into a detailed, diagram-ready instruction."""
+    refinement_prompt = f"""
+You are an expert science educator and diagram designer.
+Rewrite the following vague user request into a clear, detailed prompt for generating an educational flowchart or mindmap.
+
+Include:
+- A definition of the main concept
+- Key stages or components
+- For each: what happens, what causes it, where it occurs
+- If it's a cycle: state that the last step connects back to the first
+- Keep language simple and explanatory
+
+User request: "{user_input}"
+
+Rewritten prompt:
+"""
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {api_key}'
+    }
+    payload = {
+        'model': MODEL_NAME,
+        'messages': [
+            {"role": "system", "content": "You are a helpful prompt engineer."},
+            {"role": "user", "content": refinement_prompt}
+        ]
+    }
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(API_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+        refined = data['choices'][0]['message']['content'].strip()
+        # Clean common AI artifacts
+        refined = re.sub(r'^["\s]+|["\s]+$', '', refined)
+        return refined
+
 
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
     if not api_key:
         raise ValueError("User did not provide an API Key.")
 
+    # --- NEW: Prompt Scoring & Refinement Step ---
+    user_input = description.strip()
+    score = await score_prompt(api_key, user_input)
+    
+    if score < 6:  # Threshold for "too naive"
+        final_description = await refine_prompt(api_key, user_input)
+    else:
+        final_description = user_input
+
     base_prompt = PROMPTS.get(diagram_type)
     if not base_prompt:
         raise ValueError(f"Unsupported diagram type: {diagram_type}")
     
-    prompt = base_prompt.format(description=description.strip())
+    prompt = base_prompt.format(description=final_description.strip())
 
     headers = {
         'Content-Type': 'application/json', 
