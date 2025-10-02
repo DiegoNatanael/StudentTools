@@ -11,24 +11,24 @@ PROMPTS = {
     "Flowchart": """
 You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
 ALWAYS start with 'flowchart TD' (or 'flowchart LR' if horizontal flow is implied).
-Use proper node syntax with escaped labels:
-- [\"Text\"] = rectangle (process)
-- {\"Text\"} = diamond (decision)
-- ((\"Text\")) = circle (start/stop)
-- [/\"Text\"\\] = trapezoid (manual input)
-- [\\\"Text\"/] = inverted trapezoid (manual output)
-- [((\"Text\"))] = subroutine
-- [\"Text\"] = document
-- [(\"Database\")] = cylinder
+Use proper node syntax with double quotes for labels that contain spaces:
+- ["Text"] = rectangle (process)
+- {"Text"} = diamond (decision)
+- (("Text")) = circle (start/stop)
+- [/"Text"\\] = trapezoid (manual input)
+- [\\"Text"/] = inverted trapezoid (manual output)
+- [(("Text"))] = subroutine
+- ["Text"] = document
+- [("Database")] = cylinder
 
 Example of a complete flowchart:
 flowchart TD
-    A((\"Start\")) --> B{\"Is user logged in?\"}
-    B -->|\"Yes\"| C[\"Show Dashboard\"]
-    B -->|\"No\"| D[/\"Enter Credentials\"\\]
-    D --> E[\"Validate\"]
+    A(("Start")) --> B{"Is user logged in?"}
+    B -->|"Yes"| C["Show Dashboard"]
+    B -->|"No"| D[/"Enter Credentials"\\]
+    D --> E["Validate"]
     E --> B
-    C --> F(((\"End\")))
+    C --> F((("End")))
 
 Now generate a flowchart for:
 {description}
@@ -36,7 +36,7 @@ Now generate a flowchart for:
 RULES:
 - Output ONLY raw Mermaid code — no markdown, no explanations
 - Every node must have an ID (e.g., A, B, Step1)
-- Use escaped quotes: \"{Text}\" for all labels
+- Use double quotes around labels if they contain spaces or special characters
 - Never output just a single word like 'Decision'
 - Always include the 'flowchart TD' header
 """,
