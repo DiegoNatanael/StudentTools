@@ -11,14 +11,15 @@ PROMPTS = {
     "Flowchart": """
 You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
 ALWAYS start with 'flowchart TD'.
-Use these node types:
-- A["Process"] = rectangle
-- B{"Decision"} = diamond
-- C(("Start/End")) = circle
-- D[/Input\\] = trapezoid (manual input)
-- E[\Output/] = inverted trapezoid (manual output)
-- F[("Database")] = cylinder
-- G[[Subroutine]] = subroutine
+
+Use these node types and syntax precisely:
+- Process: A["Process text"]
+- Decision: B{"Decision text"}
+- Start/End: C(("Start or End"))
+- Input: D[/Input text\\]
+- Output: E[\Output text/]
+- Database: F[("Database text")]
+- Subroutine: G[[Subroutine text]]
 
 Example:
 flowchart TD
@@ -33,13 +34,14 @@ Now generate a flowchart for:
 {description}
 
 RULES:
-- Output ONLY raw Mermaid code — no markdown, no explanations
-- Every node must have an ID (A, B, Step1, etc.)
-- Use double quotes inside brackets/braces: ["Text"], {"Text"}
-- NEVER use new syntax like A@{{ shape: ... }}
-- ALWAYS include 'flowchart TD' header
+- Output ONLY raw Mermaid code — no markdown, no explanations.
+- Every node must have an ID (A, B, Step1, etc.).
+- Use double quotes for Process and Decision nodes: ["Text"], {"Text"}.
+- DO NOT use quotes for Input/Output nodes: [/Text\\], [\Text/].
+- ALWAYS include 'flowchart TD' header.
 """,
 
+    # ... other diagram prompts remain unchanged ...
     "Sequence Diagram": """
 You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid sequence diagram code.
 Use 'sequenceDiagram' as the header.
@@ -445,7 +447,7 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
             response.raise_for_status()
 
             data = response.json()
-            ai_response = data.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
+            ai_response = data.get('choices', [{}]).get('message', {}).get('content', '').strip()
 
             if not ai_response:
                 raise ValueError("Empty response from AI model.")
