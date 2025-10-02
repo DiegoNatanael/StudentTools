@@ -2,7 +2,7 @@ import httpx
 import re
 from typing import Optional
 
-API_URL = 'https://api.z.ai/api/paas/v4/chat/completions  '
+API_URL = 'https://api.z.ai/api/paas/v4/chat/completions'
 MODEL_NAME = 'glm-4.5-flash'
 
 # --- YOUR ORIGINAL PROMPTS DICT (UNCHANGED) ---
