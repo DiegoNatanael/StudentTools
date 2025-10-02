@@ -352,90 +352,10 @@ RULES:
 - DO NOT use ::icon() syntax.
 """,
 }
-# --- END OF YOUR ORIGINAL PROMPTS (UNCHANGED) ---
 
-
-def extract_mermaid_code(text: str) -> str:
-    """
-    Finds and extracts the first valid Mermaid code block from a string.
-    """
-    text = text.strip()
-    
-    # Try markdown block first
-    match = re.search(r"```(?:mermaid)?\n(.*?)```", text, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-
-    # Find line starting with valid keyword
-    lines = text.split('\n')
-    valid_starts = (
-        "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
-        "erDiagram", "journey", "gantt", "pie", "quadrantChart", "mindmap",
-        "timeline", "gitGraph", "sankey-beta", "xychart-beta", "block-beta", "kanban"
-    )
-    
-    start_index = -1
-    for i, line in enumerate(lines):
-        if line.strip().startswith(valid_starts):
-            start_index = i
-            break
-            
-    if start_index != -1:
-        return '\n'.join(lines[start_index:]).strip()
-
-    raise ValueError(f"Could not find valid Mermaid diagram. Got: {repr(text[:200])}")
-
-
-def sanitize_mermaid_code(code: str, diagram_type: str) -> str:
-    """
-    Clean up common Mermaid syntax errors that AIs make.
-    """
-    # Remove any remaining markdown fences
-    code = re.sub(r"```(?:mermaid)?", "", code).strip()
-    
-    # Fix flowchart issues
-    if diagram_type == "Flowchart":
-        # Convert single braces {text} to double braces {{text}} for diamonds
-        # Match {text} that's not already {{text}}
-        code = re.sub(r'(?<!\{)\{([^{}]+)\}(?!\})', r'{{\1}}', code)
-        
-        # Remove quotes from inside any braces
-        code = re.sub(r'\{\{([^}]*)"([^"}]*)"([^}]*)\}\}', r'{{\1\2\3}}', code)
-        
-        # Remove question marks and exclamation marks
-        code = re.sub(r'\{\{([^}]*)[?!]([^}]*)\}\}', r'{{\1\2}}', code)
-    
-    # Fix Gantt chart task IDs
-    if diagram_type == "Gantt":
-        lines = code.split('\n')
-        fixed_lines = []
-        task_counter = 1
-        
-        for line in lines:
-            # If it's a task line without proper ID, add one
-            if ':' in line and 'section' not in line.lower() and not re.search(r':[a-zA-Z0-9_]+,', line):
-                # Add task ID after the colon
-                line = re.sub(r':(\s*)((?:after|des|active)\s+[^,]+|[\d-]+)', rf':task{task_counter}, \2', line)
-                task_counter += 1
-            fixed_lines.append(line)
-        
-        code = '\n'.join(fixed_lines)
-    
-    # Remove any trailing explanatory text
-    lines = code.split('\n')
-    clean_lines = []
-    for line in lines:
-        # Stop if we hit explanatory text
-        if line.strip().lower().startswith(('note:', 'explanation:', 'this diagram', 'the above')):
-            break
-        clean_lines.append(line)
-    
-    return '\n'.join(clean_lines).strip()
-
-
-# --- NEW: Prompt Scoring & Refinement System ---
+# === AI-BASED PROMPT EVALUATION (Step 1) ===
 async def score_prompt(api_key: str, user_input: str) -> int:
-    """Score prompt quality from 0 (very vague) to 10 (detailed and clear)."""
+    """AI evaluates prompt quality. Returns integer 0–10."""
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {api_key}'
@@ -443,33 +363,53 @@ async def score_prompt(api_key: str, user_input: str) -> int:
     payload = {
         'model': MODEL_NAME,
         'messages': [
-            {"role": "system", "content": "You are a prompt quality evaluator. Respond ONLY with an integer from 0 to 10."},
-            {"role": "user", "content": f"Score this prompt for generating an educational diagram: '{user_input}'"}
+            {
+                "role": "system",
+                "content": (
+                    "You are a prompt quality evaluator for educational diagram generation. "
+                    "Respond ONLY with an integer from 0 to 10. "
+                    "Score 0–3: vague, short, or incomplete (e.g., 'water cycle', 'photosynthesis'). "
+                    "Score 4–6: somewhat clear but missing details. "
+                    "Score 7–10: detailed, structured, and ready for diagram generation."
+                )
+            },
+            {
+                "role": "user",
+                "content": f"Score this prompt: '{user_input}'"
+            }
         ]
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        data = response.json()
-        score_text = data['choices'][0]['message']['content'].strip()
         try:
-            return max(0, min(10, int(re.search(r'\d+', score_text).group())))
-        except:
-            return 3  # default low score if parsing fails
+            response = await client.post(API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            score_text = data['choices'][0]['message']['content'].strip()
+            # Extract first integer
+            match = re.search(r'\d+', score_text)
+            if match:
+                score = int(match.group())
+                return max(0, min(10, score))
+            else:
+                return 3  # fallback
+        except Exception:
+            return 3  # safe fallback on error
 
 
+# === AI REWRITING (Step 2) ===
 async def refine_prompt(api_key: str, user_input: str) -> str:
-    """Rewrite a vague prompt into a detailed, diagram-ready instruction."""
+    """AI rewrites a naive prompt into a rich, diagram-ready instruction."""
     refinement_prompt = f"""
 You are an expert science educator and diagram designer.
-Rewrite the following vague user request into a clear, detailed prompt for generating an educational flowchart or mindmap.
+Rewrite the following user request into a clear, detailed prompt for generating an educational diagram (flowchart or mindmap).
 
-Include:
-- A definition of the main concept
-- Key stages or components
-- For each: what happens, what causes it, where it occurs
-- If it's a cycle: state that the last step connects back to the first
-- Keep language simple and explanatory
+Guidelines:
+- Start with a definition of the main concept
+- List key stages or components
+- For each: explain what happens, what causes it, and where it occurs
+- If it's a cycle (like water cycle), explicitly say the last step connects back to the first
+- Keep language simple, concise, and explanatory
+- Do NOT output Mermaid code — only the rewritten prompt text
 
 User request: "{user_input}"
 
@@ -487,33 +427,78 @@ Rewritten prompt:
         ]
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        data = response.json()
-        refined = data['choices'][0]['message']['content'].strip()
-        # Clean common AI artifacts
-        refined = re.sub(r'^["\s]+|["\s]+$', '', refined)
-        return refined
+        try:
+            response = await client.post(API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            refined = data['choices'][0]['message']['content'].strip()
+            # Clean common artifacts
+            refined = re.sub(r'^["\s]+|["\s]+$', '', refined)
+            return refined
+        except Exception:
+            return user_input  # fallback to original
 
 
+# === EXISTING HELPER FUNCTIONS (unchanged) ===
+def extract_mermaid_code(text: str) -> str:
+    text = text.strip()
+    match = re.search(r"```(?:mermaid)?\n(.*?)```", text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    lines = text.split('\n')
+    valid_starts = ("flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
+                    "erDiagram", "journey", "gantt", "pie", "quadrantChart", "mindmap",
+                    "timeline", "gitGraph", "sankey-beta", "xychart-beta", "block-beta", "kanban")
+    for i, line in enumerate(lines):
+        if line.strip().startswith(valid_starts):
+            return '\n'.join(lines[i:]).strip()
+    raise ValueError(f"Could not find valid Mermaid diagram. Got: {repr(text[:200])}")
+
+
+def sanitize_mermaid_code(code: str, diagram_type: str) -> str:
+    code = re.sub(r"```(?:mermaid)?", "", code).strip()
+    if diagram_type == "Flowchart":
+        code = re.sub(r'(?<!\{)\{([^{}]+)\}(?!\})', r'{{\1}}', code)
+        code = re.sub(r'\{\{([^}]*)"([^"}]*)"([^}]*)\}\}', r'{{\1\2\3}}', code)
+        code = re.sub(r'\{\{([^}]*)[?!]([^}]*)\}\}', r'{{\1\2}}', code)
+    if diagram_type == "Gantt":
+        lines, fixed_lines, task_counter = code.split('\n'), [], 1
+        for line in lines:
+            if ':' in line and 'section' not in line.lower() and not re.search(r':[a-zA-Z0-9_]+,', line):
+                line = re.sub(r':(\s*)((?:after|des|active)\s+[^,]+|[\d-]+)', rf':task{task_counter}, \2', line)
+                task_counter += 1
+            fixed_lines.append(line)
+        code = '\n'.join(fixed_lines)
+    clean_lines = []
+    for line in code.split('\n'):
+        if line.strip().lower().startswith(('note:', 'explanation:', 'this diagram', 'the above')):
+            break
+        clean_lines.append(line)
+    return '\n'.join(clean_lines).strip()
+
+
+# === MAIN FUNCTION: Sequential AI Calls (Step 1 → Step 2 → Step 3) ===
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
     if not api_key:
         raise ValueError("User did not provide an API Key.")
 
-    # --- NEW: Prompt Scoring & Refinement Step ---
     user_input = description.strip()
+
+    # 🔹 STEP 1: AI evaluates prompt quality
     score = await score_prompt(api_key, user_input)
-    
-    if score < 6:  # Threshold for "too naive"
+
+    # 🔹 STEP 2: If naive, AI rewrites it
+    if score < 6:
         final_description = await refine_prompt(api_key, user_input)
     else:
         final_description = user_input
 
+    # 🔹 STEP 3: Generate diagram with (possibly refined) prompt
     base_prompt = PROMPTS.get(diagram_type)
     if not base_prompt:
         raise ValueError(f"Unsupported diagram type: {diagram_type}")
     
-    prompt = base_prompt.format(description=final_description.strip())
+    prompt = base_prompt.format(description=final_description)
 
     headers = {
         'Content-Type': 'application/json', 
@@ -529,27 +514,22 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
+            # 🔥 Use CLEAN API_URL (no spaces!)
             response = await client.post(API_URL, headers=headers, json=payload)
             response.raise_for_status()
 
             data = response.json()
-            
-            # FIX: Properly access the nested structure
             choices = data.get('choices', [])
             if not choices:
                 raise ValueError("API returned no choices")
             
             message = choices[0].get('message', {})
             ai_response = message.get('content', '').strip()
-
             if not ai_response:
                 raise ValueError("Empty response from AI model.")
 
             mermaid_code = extract_mermaid_code(ai_response)
-            
-            # Sanitize the code to fix common AI mistakes
             mermaid_code = sanitize_mermaid_code(mermaid_code, diagram_type)
-            
             return mermaid_code
 
         except ValueError as e:
