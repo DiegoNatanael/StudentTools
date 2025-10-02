@@ -10,28 +10,31 @@ MODEL_NAME = 'glm-4.5-flash'
 PROMPTS = {
     "Flowchart": """
 You are a Mermaid.js v11.3.0+ expert. Generate ONLY valid Mermaid flowchart code.
-ALWAYS start with 'flowchart TD' (or 'flowchart LR' if horizontal flow is implied).
-Use NEW shape syntax: ID@{ shape: NAME, label: "Label" }
-Available shapes: rect, diam, circle, lean-r, lean-l, cyl, trapezoid, stadium, fork, win-pane, f-circ, docs, st-rect, odd, flag, hex, trap-t, trap-b, dbl-circ, fr-circ, bow-rect, fr-rect, cross-circ, tag-doc, tag-rect, text
+ALWAYS start with 'flowchart TD'.
+Use EXACTLY this syntax for nodes:
+    ID@{ shape: NAME, label: "Text" }
+- Replace ID with a short identifier (A, B, Step1, etc.)
+- Replace NAME with one of: rect, diam, circle, lean-r, lean-l, cyl, trapezoid, stadium, fork, etc.
+- Replace "Text" with a descriptive label in double quotes
+- ALWAYS include BOTH shape and label
+- NO spaces before colons
+- NO trailing commas
+- NO extra braces
 
 Example:
 flowchart TD
     A@{ shape: circle, label: "Start" } --> B@{ shape: diam, label: "Is user logged in?" }
-    B -->|Yes| C@{ shape: rect, label: "Show Dashboard" }
-    B -->|No| D@{ shape: lean-r, label: "Enter Credentials" }
-    D --> E@{ shape: rect, label: "Validate" }
-    E --> B
-    C --> F@{ shape: circle, label: "End" }
+    B -->|"Yes"| C@{ shape: rect, label: "Show Dashboard" }
+    B -->|"No"| D@{ shape: lean-r, label: "Enter Credentials" }
 
 Now generate a flowchart for:
 {description}
 
 RULES:
 - Output ONLY raw Mermaid code — no markdown, no explanations
-- Every node must have an ID (e.g., A, B, Step1)
-- Use shape syntax: ID@{ shape: NAME, label: "Label" }
-- Never output just a single word like 'Decision'
-- Always include the 'flowchart TD' header
+- Every node MUST use the @{{ shape: ..., label: ... }} syntax
+- Never omit the label
+- Never use old syntax like ["Text"] or {{"Text"}}
 """,
 
     "Sequence Diagram": """
@@ -368,6 +371,7 @@ RULES:
 
 def extract_mermaid_code(text: str) -> str:
     text = text.strip()
+    
     # Remove markdown code blocks
     if text.startswith("```"):
         lines = text.split("\n")
@@ -385,9 +389,14 @@ def extract_mermaid_code(text: str) -> str:
             elif in_mermaid:
                 code_lines.append(line)
         if code_lines:
-            return "\n".join(code_lines).strip()
+            text = "\n".join(code_lines).strip()
     
-    # If no code block, assume raw code — but ensure it starts with a valid keyword
+    # Validate v11.3.0+ flowchart syntax if it's a flowchart
+    if text.startswith("flowchart"):
+        # Basic check: if it uses @{}, ensure it has 'shape:' and 'label:'
+        if "@{" in text and not ("shape:" in text and "label:" in text):
+            raise ValueError("Invalid v11.3.0+ flowchart syntax: missing shape or label")
+    
     valid_starts = (
         "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
         "erDiagram", "journey", "gantt", "pie", "quadrantChart", "mindmap",
@@ -396,9 +405,8 @@ def extract_mermaid_code(text: str) -> str:
     if text and any(text.lstrip().startswith(kw) for kw in valid_starts):
         return text
     
-    # Fallback: return as-is
-    return text
-
+    raise ValueError(f"Invalid Mermaid code. Got: {repr(text)}")
+    
 
 async def generate_mermaid_code(api_key: str, diagram_type: str, description: str) -> str:
     if not api_key:
