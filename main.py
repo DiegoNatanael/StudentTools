@@ -1,11 +1,10 @@
 # main.py
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response, HTMLResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional
-# IMPORT FOR CORS:
 from fastapi.middleware.cors import CORSMiddleware 
 
 # Only import the necessary generator
@@ -13,27 +12,25 @@ from mermaid_generator import generate_mermaid_code
 
 app = FastAPI(title="AI Studio Backend Services")
 
-# --- CORS MIDDLEWARE FIX ---
-# This allows your local file/server (e.g., http://127.0.0.1:5500) to communicate with 
-# your remote Render backend.
-# IMPORTANT: "*" allows ALL origins.
-# Only allow your real frontend origin
+# --- CORRECT CORS MIDDLEWARE CONFIGURATION ---
+# ✅ NO trailing spaces in origins
+# ✅ NO manual @app.options route
+# ✅ allow_credentials=False (required when using specific origins)
 origins = [
-    "https://student-tools-front-end.vercel.app/",
-    "https://www.student-tools-front-end.vercel.app/",  # if you use www
-    # Add localhost for local dev (optional)
-    "http://localhost:5173",   # if using Vite
-    "http://127.0.0.1:5500",   # if still using Live Server during dev
+    "https://student-tools-front-end.vercel.app",
+    "https://www.student-tools-front-end.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5500",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=False,
+    allow_credentials=False,  # ← Must be False with specific origins
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# ---------------------------
+# ---------------------------------------------
 
 # --- Diagram Generator Model (BYOK) ---
 class DiagramRequest(BaseModel):
@@ -45,7 +42,8 @@ class DiagramRequest(BaseModel):
 
 # --- API Endpoints ---
 
-# --- Static Files Serving ---
+# --- Static Files Serving (optional, since frontend is on Vercel) ---
+# You can remove this if you're only using Vercel for frontend
 app.mount("/static", StaticFiles(directory=".", html=True), name="static")
 
 @app.get("/", response_class=HTMLResponse)
@@ -57,15 +55,7 @@ async def serve_index():
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="index.html not found.")
 
-# --- FINAL CORS FIX: Explicit OPTIONS Route for Preflight ---
-@app.options("/api/generate/diagram")
-async def options_diagram():
-    """
-    Handles the CORS preflight request. The CORSMiddleware will attach 
-    the necessary headers to this response.
-    """
-    # Return a minimal 200 OK response
-    return Response(status_code=200)
+# ❌ REMOVED: Manual @app.options route — it breaks CORS middleware
 
 # --- NEW: Mermaid Diagram Generator Endpoint (BYOK) ---
 @app.post("/api/generate/diagram", summary="Generate Mermaid.js Code via AI (BYOK)")
