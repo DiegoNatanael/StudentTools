@@ -14,7 +14,9 @@ from mermaid_generator import generate_mermaid_code
 app = FastAPI(title="AI Studio Backend Services")
 
 # --- CORS MIDDLEWARE FIX ---
-# Allow all origins ("*") for local development to work with remote Render backend.
+# This allows your local file/server (e.g., http://127.0.0.1:5500) to communicate with 
+# your remote Render backend.
+# IMPORTANT: "*" allows ALL origins.
 origins = ["*"] 
 
 app.add_middleware(
@@ -37,7 +39,6 @@ class DiagramRequest(BaseModel):
 # --- API Endpoints ---
 
 # --- Static Files Serving ---
-# Serves index.html, script.js, etc. from the root directory.
 app.mount("/static", StaticFiles(directory=".", html=True), name="static")
 
 @app.get("/", response_class=HTMLResponse)
@@ -48,6 +49,16 @@ async def serve_index():
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="index.html not found.")
+
+# --- FINAL CORS FIX: Explicit OPTIONS Route for Preflight ---
+@app.options("/api/generate/diagram")
+async def options_diagram():
+    """
+    Handles the CORS preflight request. The CORSMiddleware will attach 
+    the necessary headers to this response.
+    """
+    # Return a minimal 200 OK response
+    return Response(status_code=200)
 
 # --- NEW: Mermaid Diagram Generator Endpoint (BYOK) ---
 @app.post("/api/generate/diagram", summary="Generate Mermaid.js Code via AI (BYOK)")
@@ -68,11 +79,8 @@ async def generate_diagram_endpoint(request: DiagramRequest):
         return {"mermaid_code": mermaid_code}
         
     except ConnectionError as e:
-        # Catch AI communication errors
         raise HTTPException(status_code=503, detail=f"AI Service Error: {e}")
     except ValueError as e:
-        # Catch missing key error from generator
         raise HTTPException(status_code=401, detail=f"Authentication Error: {e}")
     except Exception as e:
-        # Catch all other exceptions
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
