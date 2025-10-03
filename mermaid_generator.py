@@ -2,6 +2,7 @@ import httpx
 import re
 from typing import Optional
 
+# 🔥 CORRECTED: NO TRAILING SPACES IN URL
 API_URL = 'https://api.z.ai/api/paas/v4/chat/completions'
 MODEL_NAME = 'glm-4.5-flash'
 
@@ -352,10 +353,13 @@ RULES:
 - DO NOT use ::icon() syntax.
 """,
 }
+# --- END OF YOUR ORIGINAL PROMPTS ---
+
 
 # === AI-BASED PROMPT EVALUATION (Step 1) ===
 async def score_prompt(api_key: str, user_input: str) -> int:
     """AI evaluates prompt quality. Returns integer 0–10."""
+    print(f"🔍 [SCORE] Input: '{user_input}'")
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {api_key}'
@@ -381,24 +385,31 @@ async def score_prompt(api_key: str, user_input: str) -> int:
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
+            print(f"📡 [SCORE] POST to: {API_URL}")
             response = await client.post(API_URL, headers=headers, json=payload)
+            print(f"✅ [SCORE] Status: {response.status_code}")
             response.raise_for_status()
             data = response.json()
             score_text = data['choices'][0]['message']['content'].strip()
-            # Extract first integer
+            print(f"📝 [SCORE] Raw response: {score_text}")
             match = re.search(r'\d+', score_text)
             if match:
                 score = int(match.group())
-                return max(0, min(10, score))
+                final_score = max(0, min(10, score))
+                print(f"⭐ [SCORE] Final score: {final_score}")
+                return final_score
             else:
-                return 3  # fallback
-        except Exception:
-            return 3  # safe fallback on error
+                print("❌ [SCORE] No number found → fallback to 3")
+                return 3
+        except Exception as e:
+            print(f"🚨 [SCORE] Error: {str(e)}")
+            return 3
 
 
 # === AI REWRITING (Step 2) ===
 async def refine_prompt(api_key: str, user_input: str) -> str:
     """AI rewrites a naive prompt into a rich, diagram-ready instruction."""
+    print(f"🔧 [REFINE] Input: '{user_input}'")
     refinement_prompt = f"""
 You are an expert science educator and diagram designer.
 Rewrite the following user request into a clear, detailed prompt for generating an educational diagram (flowchart or mindmap).
@@ -428,15 +439,19 @@ Rewritten prompt:
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
+            print(f"📡 [REFINE] POST to: {API_URL}")
             response = await client.post(API_URL, headers=headers, json=payload)
+            print(f"✅ [REFINE] Status: {response.status_code}")
             response.raise_for_status()
             data = response.json()
             refined = data['choices'][0]['message']['content'].strip()
-            # Clean common artifacts
+            print(f"📝 [REFINE] Raw response: {refined}")
             refined = re.sub(r'^["\s]+|["\s]+$', '', refined)
+            print(f"✅ [REFINE] Final refined prompt: {refined}")
             return refined
-        except Exception:
-            return user_input  # fallback to original
+        except Exception as e:
+            print(f"🚨 [REFINE] Error: {str(e)}")
+            return user_input
 
 
 # === EXISTING HELPER FUNCTIONS (unchanged) ===
@@ -483,14 +498,17 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
         raise ValueError("User did not provide an API Key.")
 
     user_input = description.strip()
+    print(f"🚀 [MAIN] User input: '{user_input}'")
 
     # 🔹 STEP 1: AI evaluates prompt quality
     score = await score_prompt(api_key, user_input)
 
     # 🔹 STEP 2: If naive, AI rewrites it
     if score < 6:
+        print(f"⚠️ [MAIN] Score {score} < 6 → refining prompt...")
         final_description = await refine_prompt(api_key, user_input)
     else:
+        print(f"✅ [MAIN] Score {score} ≥ 6 → using original prompt.")
         final_description = user_input
 
     # 🔹 STEP 3: Generate diagram with (possibly refined) prompt
@@ -499,6 +517,7 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
         raise ValueError(f"Unsupported diagram type: {diagram_type}")
     
     prompt = base_prompt.format(description=final_description)
+    print(f"📄 [MAIN] Final prompt sent to AI:\n{prompt}")
 
     headers = {
         'Content-Type': 'application/json', 
@@ -514,8 +533,9 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
-            # 🔥 Use CLEAN API_URL (no spaces!)
+            print(f"📡 [MAIN] Sending final diagram request to: {API_URL}")
             response = await client.post(API_URL, headers=headers, json=payload)
+            print(f"✅ [MAIN] Final response status: {response.status_code}")
             response.raise_for_status()
 
             data = response.json()
@@ -525,14 +545,22 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
             
             message = choices[0].get('message', {})
             ai_response = message.get('content', '').strip()
+            print(f"📝 [MAIN] Raw AI response:\n{ai_response}")
+
             if not ai_response:
                 raise ValueError("Empty response from AI model.")
 
             mermaid_code = extract_mermaid_code(ai_response)
+            print(f"📦 [MAIN] Extracted Mermaid code:\n{mermaid_code}")
+
             mermaid_code = sanitize_mermaid_code(mermaid_code, diagram_type)
+            print(f"✅ [MAIN] Sanitized Mermaid code:\n{mermaid_code}")
+
             return mermaid_code
 
         except ValueError as e:
+            print(f"🚨 [MAIN] ValueError: {str(e)}")
             raise ConnectionError(f"AI returned invalid Mermaid code: {e}")
         except Exception as e:
+            print(f"🚨 [MAIN] General Exception: {str(e)}")
             raise ConnectionError(f"AI API failed: {e}")
