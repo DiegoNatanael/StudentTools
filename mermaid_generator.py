@@ -12,30 +12,24 @@ PROMPTS = {
 You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
 Start with 'flowchart TD'.
 
+Use this structure for educational diagrams:
+- Main concept as first node: A["Water Cycle: The continuous movement of water on, above, and below Earth's surface"]
+- Then show stages as rectangles with SHORT explanations (max 2 lines, use \\n for line break)
+- Example: B["Evaporation\\nSun heats water → vapor rises"]
+- Use simple arrows: A --> B
+- Close the cycle: LastNode --> FirstStage
+
 Valid node shapes:
-- Rectangle: A[Process]
-- Rounded: B(Action)
-- Stadium: C([Start/End])
-- Diamond: D{{Decision}}
-- Circle: E((Point))
+- Rectangle: A["Text"]
+- Stadium: C(["Start/End"])
 
-CRITICAL: For diamond decision nodes, use DOUBLE curly braces {{text}}
-
-Example:
-flowchart TD
-    A([Start]) --> B[Get input]
-    B --> C{{Valid}}
-    C -->|Yes| D[Process]
-    C -->|No| E[Error]
-    D --> F([End])
-    E --> B
+CRITICAL:
+- Use \\n for line breaks inside nodes
+- Keep each line under 30 characters
+- DO NOT use diamonds or circles
+- Output ONLY code, no explanations
 
 Generate a flowchart for: {description}
-
-Rules:
-- Use {{double braces}} for diamonds
-- Keep text simple, no special characters
-- Output ONLY code, no explanations
 """,
 
     "Sequence Diagram": """
