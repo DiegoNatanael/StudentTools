@@ -1,78 +1,108 @@
-# main.py
-
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from typing import List, Optional
-from fastapi.middleware.cors import CORSMiddleware 
+from typing import List
+import docx
+from pptx import Presentation
+from pptx.util import Inches
+import io
 
-# Only import the necessary generator
-from mermaid_generator import generate_mermaid_code 
+# --- Pydantic Models: Define the structure we expect from the AI ---
 
-app = FastAPI(title="AI Studio Backend Services")
+class DocxSection(BaseModel):
+    header: str = Field(..., description="The heading of the section.")
+    paragraphs: List[str] = Field(..., description="A list of paragraphs in this section.")
 
-# --- CORRECT CORS MIDDLEWARE CONFIGURATION ---
+class DocumentContent(BaseModel):
+    title: str = Field(..., description="The main title of the document.")
+    sections: List[DocxSection] = Field(..., description="A list of sections in the document.")
 
-origins = [
-    "https://student-tools-front-end.vercel.app",
-    "https://www.student-tools-front-end.vercel.app",
-    "http://localhost:5173",
-    "http://127.0.0.1:5500",
-]
+class PptxSlide(BaseModel):
+    title: str = Field(..., description="The title of the slide.")
+    content: List[str] = Field(..., description="A list of bullet points for the slide content.")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=False,  # ← Must be False with specific origins
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-# ---------------------------------------------
+class PresentationContent(BaseModel):
+    title: str = Field(..., description="The main title of the presentation (for the title slide).")
+    slides: List[PptxSlide] = Field(..., description="A list of content slides.")
 
-# --- Diagram Generator Model (BYOK) ---
-class DiagramRequest(BaseModel):
-    api_key: str = Field(..., description="The user's external AI API Key.")
-    diagram_type: str = Field(..., description="The type of diagram to generate (e.g., Flowchart).")
-    description: str = Field(..., description="The user's description of the diagram content.")
-    use_icons: bool = Field(False, description="Whether to use icons (Mindmap specific).")
-
+# --- FastAPI App ---
+app = FastAPI(title="Document Generation Backend")
 
 # --- API Endpoints ---
 
-# --- Static Files Serving (optional, since frontend is on Vercel) ---
-# You can remove this if you're only using Vercel for frontend
-app.mount("/static", StaticFiles(directory=".", html=True), name="static")
-
-@app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    """Serves the main frontend application file (index.html)."""
-    try:
-        with open("index.html", "r") as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="index.html not found.")
-
-@app.post("/api/generate/diagram", summary="Generate Mermaid.js Code via AI (BYOK)")
-async def generate_diagram_endpoint(request: DiagramRequest):
+@app.post("/api/generate/docx", summary="Generate a .docx file from JSON")
+async def generate_docx(content: DocumentContent):
     """
-    Receives diagram details AND user's API Key, calls the AI securely, 
-    and returns the code.
+    Receives structured JSON content and generates a .docx file in memory.
     """
-    if not request.api_key or not request.diagram_type or not request.description:
-        raise HTTPException(status_code=400, detail="Missing API Key, diagram type, or description.")
-        
     try:
-        mermaid_code = await generate_mermaid_code(
-            api_key=request.api_key, 
-            diagram_type=request.diagram_type, 
-            description=request.description
-        )
-        return {"mermaid_code": mermaid_code}
-        
-    except ConnectionError as e:
-        raise HTTPException(status_code=503, detail=f"AI Service Error: {e}")
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=f"Authentication Error: {e}")
+        document = docx.Document()
+        document.add_heading(content.title, level=0)
+
+        for section in content.sections:
+            if section.header:
+                document.add_heading(section.header, level=1)
+            for p_text in section.paragraphs:
+                document.add_paragraph(p_text)
+            document.add_paragraph() # Add a little space between sections
+
+        # Save the document to an in-memory buffer
+        doc_buffer = io.BytesIO()
+        document.save(doc_buffer)
+        doc_buffer.seek(0)
+
+        # Define headers for file download
+        headers = {
+            'Content-Disposition': f'attachment; filename="{content.title.replace(" ", "_")}.docx"'
+        }
+
+        # Return the file as a streaming response
+        return StreamingResponse(doc_buffer, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers=headers)
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred while generating the DOCX file: {e}")
+
+
+@app.post("/api/generate/pptx", summary="Generate a .pptx file from JSON")
+async def generate_pptx(content: PresentationContent):
+    """
+    Receives structured JSON content and generates a .pptx file in memory.
+    """
+    try:
+        prs = Presentation()
+        
+        # Title slide
+        title_slide_layout = prs.slide_layouts[0]
+        slide = prs.slides.add_slide(title_slide_layout)
+        title = slide.shapes.title
+        title.text = content.title
+
+        # Content slides
+        content_slide_layout = prs.slide_layouts[1]
+        for slide_data in content.slides:
+            slide = prs.slides.add_slide(content_slide_layout)
+            title = slide.shapes.title
+            body = slide.shapes.body
+            title.text = slide_data.title
+            
+            # Add bullet points
+            tf = body.text_frame
+            tf.clear() # Clear existing text
+            for point in slide_data.content:
+                p = tf.add_paragraph()
+                p.text = point
+                p.level = 0
+
+        # Save presentation to an in-memory buffer
+        ppt_buffer = io.BytesIO()
+        prs.save(ppt_buffer)
+        ppt_buffer.seek(0)
+        
+        headers = {
+            'Content-Disposition': f'attachment; filename="{content.title.replace(" ", "_")}.pptx"'
+        }
+
+        return StreamingResponse(ppt_buffer, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation", headers=headers)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while generating the PPTX file: {e}")
