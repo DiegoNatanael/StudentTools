@@ -1,33 +1,22 @@
 import httpx
 import re
+import asyncio
 from typing import Optional
 
 # 🔥 CORRECTED: NO TRAILING SPACES IN URL
 API_URL = 'https://api.z.ai/api/paas/v4/chat/completions'
 MODEL_NAME = 'glm-4.5-flash'
 
-# --- YOUR ORIGINAL PROMPTS DICT (UNCHANGED) ---
+# --- YOUR ORIGINAL PROMPTS DICT (UNCHANGED EXCEPT FLOWCHART) ---
 PROMPTS = {
     "Flowchart": """
 You are a Mermaid.js expert. Generate ONLY valid Mermaid flowchart code.
 Start with 'flowchart TD'.
-
-Use this structure for educational diagrams:
-- Main concept as first node: A["Water Cycle: The continuous movement of water on, above, and below Earth's surface"]
-- Then show stages as rectangles with SHORT explanations (max 2 lines, use \\n for line break)
-- Example: B["Evaporation\\nSun heats water → vapor rises"]
-- Use simple arrows: A --> B
-- Close the cycle: LastNode --> FirstStage
-
-Valid node shapes:
-- Rectangle: A["Text"]
-- Stadium: C(["Start/End"])
-
-CRITICAL:
-- Use \\n for line breaks inside nodes
-- Keep each line under 30 characters
-- DO NOT use diamonds or circles
-- Output ONLY code, no explanations
+Use rectangles like A["Text\\nSecond line"].
+Use \\n for line breaks. Keep lines short.
+Connect nodes with --> arrows.
+Close the cycle if it's a natural process.
+Output ONLY code. No explanations.
 
 Generate a flowchart for: {description}
 """,
@@ -347,7 +336,7 @@ RULES:
 - DO NOT use ::icon() syntax.
 """,
 }
-# --- END OF YOUR ORIGINAL PROMPTS ---
+# --- END OF PROMPTS ---
 
 
 # === AI-BASED PROMPT EVALUATION (Step 1) ===
@@ -377,7 +366,7 @@ async def score_prompt(api_key: str, user_input: str) -> int:
             }
         ]
     }
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=20.0) as client:
         try:
             print(f"📡 [SCORE] POST to: {API_URL}")
             response = await client.post(API_URL, headers=headers, json=payload)
@@ -431,7 +420,7 @@ Rewritten prompt:
             {"role": "user", "content": refinement_prompt}
         ]
     }
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=20.0) as client:
         try:
             print(f"📡 [REFINE] POST to: {API_URL}")
             response = await client.post(API_URL, headers=headers, json=payload)
@@ -494,18 +483,29 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
     user_input = description.strip()
     print(f"🚀 [MAIN] User input: '{user_input}'")
 
-    # 🔹 STEP 1: AI evaluates prompt quality
-    score = await score_prompt(api_key, user_input)
+    # 🔹 Detect educational topics → always refine
+    user_input_lower = user_input.lower()
+    educational_keywords = [
+        "water cycle", "carbon cycle", "nitrogen cycle", "rock cycle",
+        "photosynthesis", "cell division", "mitosis", "meiosis",
+        "explain", "how does", "what is", "describe", "process of"
+    ]
+    is_educational = any(kw in user_input_lower for kw in educational_keywords)
 
-    # 🔹 STEP 2: If naive, AI rewrites it
-    if score < 6:
-        print(f"⚠️ [MAIN] Score {score} < 6 → refining prompt...")
+    if is_educational:
+        print("📚 [MAIN] Educational topic detected → forcing refinement")
         final_description = await refine_prompt(api_key, user_input)
     else:
-        print(f"✅ [MAIN] Score {score} ≥ 6 → using original prompt.")
-        final_description = user_input
+        # 🔹 STEP 1: AI evaluates prompt quality
+        score = await score_prompt(api_key, user_input)
+        if score < 6:
+            print(f"⚠️ [MAIN] Score {score} < 6 → refining prompt...")
+            final_description = await refine_prompt(api_key, user_input)
+        else:
+            print(f"✅ [MAIN] Score {score} ≥ 6 → using original prompt.")
+            final_description = user_input
 
-    # 🔹 STEP 3: Generate diagram with (possibly refined) prompt
+    # 🔹 STEP 2: Generate diagram with (possibly refined) prompt
     base_prompt = PROMPTS.get(diagram_type)
     if not base_prompt:
         raise ValueError(f"Unsupported diagram type: {diagram_type}")
@@ -525,36 +525,48 @@ async def generate_mermaid_code(api_key: str, diagram_type: str, description: st
         ]
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        try:
-            print(f"📡 [MAIN] Sending final diagram request to: {API_URL}")
-            response = await client.post(API_URL, headers=headers, json=payload)
-            print(f"✅ [MAIN] Final response status: {response.status_code}")
-            response.raise_for_status()
+    # 🔹 Retry up to 2 times with shorter timeout
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for attempt in range(2):
+            try:
+                print(f"📡 [MAIN] Sending diagram request (attempt {attempt+1}) to: {API_URL}")
+                response = await client.post(API_URL, headers=headers, json=payload)
+                print(f"✅ [MAIN] Response status: {response.status_code}")
+                response.raise_for_status()
 
-            data = response.json()
-            choices = data.get('choices', [])
-            if not choices:
-                raise ValueError("API returned no choices")
-            
-            message = choices[0].get('message', {})
-            ai_response = message.get('content', '').strip()
-            print(f"📝 [MAIN] Raw AI response:\n{ai_response}")
+                data = response.json()
+                choices = data.get('choices', [])
+                if not choices:
+                    raise ValueError("API returned no choices")
+                
+                message = choices[0].get('message', {})
+                ai_response = message.get('content', '').strip()
+                print(f"📝 [MAIN] Raw AI response:\n{ai_response}")
 
-            if not ai_response:
-                raise ValueError("Empty response from AI model.")
+                if not ai_response:
+                    raise ValueError("Empty response from AI model.")
 
-            mermaid_code = extract_mermaid_code(ai_response)
-            print(f"📦 [MAIN] Extracted Mermaid code:\n{mermaid_code}")
+                mermaid_code = extract_mermaid_code(ai_response)
+                print(f"📦 [MAIN] Extracted Mermaid code:\n{mermaid_code}")
 
-            mermaid_code = sanitize_mermaid_code(mermaid_code, diagram_type)
-            print(f"✅ [MAIN] Sanitized Mermaid code:\n{mermaid_code}")
+                mermaid_code = sanitize_mermaid_code(mermaid_code, diagram_type)
+                print(f"✅ [MAIN] Sanitized Mermaid code:\n{mermaid_code}")
 
-            return mermaid_code
+                return mermaid_code
 
-        except ValueError as e:
-            print(f"🚨 [MAIN] ValueError: {str(e)}")
-            raise ConnectionError(f"AI returned invalid Mermaid code: {e}")
-        except Exception as e:
-            print(f"🚨 [MAIN] General Exception: {str(e)}")
-            raise ConnectionError(f"AI API failed: {e}")
+            except (ValueError, httpx.TimeoutException, httpx.ReadTimeout, httpx.HTTPStatusError) as e:
+                if attempt == 0:
+                    print(f"⚠️ [RETRY] Attempt 1 failed: {e}. Retrying in 1s...")
+                    await asyncio.sleep(1)
+                else:
+                    print(f"🚨 [MAIN] Final failure after 2 attempts: {e}")
+                    # Return a helpful fallback diagram
+                    return '''flowchart TD
+    A["Diagram Generation Failed\\nAI returned invalid response"] --> B["Try:\\n- Shorter prompt\\n- Simpler request\\n- Rephrase"]
+    '''
+
+            except Exception as e:
+                print(f"🚨 [MAIN] Unexpected error: {e}")
+                return '''flowchart TD
+    A["Unexpected Error\\nPlease try again"] --> B["Check your API key\\nand internet connection"]
+    '''
