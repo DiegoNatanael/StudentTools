@@ -7,102 +7,97 @@ from pptx import Presentation
 from pptx.util import Inches
 import io
 
-# --- Pydantic Models: Define the structure we expect from the AI ---
+# Import the CORS middleware
+from fastapi.middleware.cors import CORSMiddleware
 
+# --- Pydantic Models ---
 class DocxSection(BaseModel):
-    header: str = Field(..., description="The heading of the section.")
-    paragraphs: List[str] = Field(..., description="A list of paragraphs in this section.")
+    header: str
+    paragraphs: List[str]
 
 class DocumentContent(BaseModel):
-    title: str = Field(..., description="The main title of the document.")
-    sections: List[DocxSection] = Field(..., description="A list of sections in the document.")
+    title: str
+    sections: List[DocxSection]
 
 class PptxSlide(BaseModel):
-    title: str = Field(..., description="The title of the slide.")
-    content: List[str] = Field(..., description="A list of bullet points for the slide content.")
+    title: str
+    content: List[str]
 
 class PresentationContent(BaseModel):
-    title: str = Field(..., description="The main title of the presentation (for the title slide).")
-    slides: List[PptxSlide] = Field(..., description="A list of content slides.")
+    title: str
+    slides: List[PptxSlide]
 
 # --- FastAPI App ---
 app = FastAPI(title="Document Generation Backend")
 
-# --- API Endpoints ---
+# ======================= START: THE FIX =======================
+# Define the list of allowed origins.
+origins = [
+    # Your Production Frontend URL
+    "https://student-tools-front-end.vercel.app",
+    
+    # Keep these for local development and testing
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "null",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# ======================= END: THE FIX =========================
+
+
+# --- API Endpoints (No changes needed below this line) ---
 
 @app.post("/api/generate/docx", summary="Generate a .docx file from JSON")
 async def generate_docx(content: DocumentContent):
-    """
-    Receives structured JSON content and generates a .docx file in memory.
-    """
     try:
         document = docx.Document()
         document.add_heading(content.title, level=0)
-
         for section in content.sections:
             if section.header:
                 document.add_heading(section.header, level=1)
             for p_text in section.paragraphs:
                 document.add_paragraph(p_text)
-            document.add_paragraph() # Add a little space between sections
+            document.add_paragraph()
 
-        # Save the document to an in-memory buffer
         doc_buffer = io.BytesIO()
         document.save(doc_buffer)
         doc_buffer.seek(0)
-
-        # Define headers for file download
-        headers = {
-            'Content-Disposition': f'attachment; filename="{content.title.replace(" ", "_")}.docx"'
-        }
-
-        # Return the file as a streaming response
+        headers = {'Content-Disposition': f'attachment; filename="{content.title.replace(" ", "_")}.docx"'}
         return StreamingResponse(doc_buffer, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers=headers)
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred while generating the DOCX file: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
 
 @app.post("/api/generate/pptx", summary="Generate a .pptx file from JSON")
 async def generate_pptx(content: PresentationContent):
-    """
-    Receives structured JSON content and generates a .pptx file in memory.
-    """
     try:
         prs = Presentation()
-        
-        # Title slide
         title_slide_layout = prs.slide_layouts[0]
         slide = prs.slides.add_slide(title_slide_layout)
-        title = slide.shapes.title
-        title.text = content.title
+        slide.shapes.title.text = content.title
 
-        # Content slides
         content_slide_layout = prs.slide_layouts[1]
         for slide_data in content.slides:
             slide = prs.slides.add_slide(content_slide_layout)
-            title = slide.shapes.title
-            body = slide.shapes.body
-            title.text = slide_data.title
-            
-            # Add bullet points
-            tf = body.text_frame
-            tf.clear() # Clear existing text
+            slide.shapes.title.text = slide_data.title
+            tf = slide.shapes.body.text_frame
+            tf.clear()
             for point in slide_data.content:
                 p = tf.add_paragraph()
                 p.text = point
                 p.level = 0
 
-        # Save presentation to an in-memory buffer
         ppt_buffer = io.BytesIO()
         prs.save(ppt_buffer)
         ppt_buffer.seek(0)
-        
-        headers = {
-            'Content-Disposition': f'attachment; filename="{content.title.replace(" ", "_")}.pptx"'
-        }
-
+        headers = {'Content-Disposition': f'attachment; filename="{content.title.replace(" ", "_")}.pptx"'}
         return StreamingResponse(ppt_buffer, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation", headers=headers)
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred while generating the PPTX file: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
