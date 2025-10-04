@@ -52,92 +52,142 @@ app.add_middleware(
 async def generate_docx(content: DocumentContent):
     try:
         document = docx.Document()
-
-        # === STYLE CONFIGURATION ===
-        style_config = {
-            "formal": {
-                "font_name": "Times New Roman",
-                "title_size": 20,
-                "header_size": 14,
-                "body_size": 12,
-                "header_color": RGBColor(0, 51, 102),  # Dark blue
-                "title_color": RGBColor(0, 51, 102),
-                "line_spacing": 1.15,
-                "after_paragraph_space": Pt(6),
-                "before_paragraph_space": Pt(6),
-                "header_underline": True,
-            },
-            "modern": {
-                "font_name": "Calibri",
-                "title_size": 18,
-                "header_size": 13,
-                "body_size": 11,
-                "header_color": RGBColor(70, 70, 70),
-                "title_color": RGBColor(70, 70, 70),
-                "line_spacing": 1.0,
-                "after_paragraph_space": Pt(4),
-                "before_paragraph_space": Pt(4),
-                "header_underline": False,
-            },
-            "academic": {
-                "font_name": "Georgia",
-                "title_size": 22,
-                "header_size": 16,
-                "body_size": 12,
-                "header_color": RGBColor(0, 0, 0),
-                "title_color": RGBColor(0, 0, 0),
-                "line_spacing": 1.5,
-                "after_paragraph_space": Pt(12),
-                "before_paragraph_space": Pt(12),
-                "header_underline": False,
-            }
-        }
-
-        config = style_config.get(content.style, style_config["formal"])
-
-        # Set default font for entire document
+        config_style = content.style
+        
+        # Set default font
         style = document.styles['Normal']
-        font = style.font
-        font.name = config["font_name"]
-        font.size = Pt(config["body_size"])
-        font.color.rgb = RGBColor(0, 0, 0)
-
-        # === ADD TITLE ===
-        title = document.add_heading(content.title, level=0)
-        title_run = title.runs[0]
-        title_run.font.size = Pt(config["title_size"])
-        title_run.font.color.rgb = config["title_color"]
-        title_run.font.bold = True
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        # === ADD SECTIONS ===
-        for section in content.sections:
-            if section.header:
-                header = document.add_heading(section.header, level=1)
-                header_run = header.runs[0]
-                header_run.font.size = Pt(config["header_size"])
-                header_run.font.color.rgb = config["header_color"]
-                header_run.font.bold = True
-                if config["header_underline"]:
+        
+        # === FORMAL STYLE: Corporate/Business Report ===
+        if config_style == "formal":
+            style.font.name = "Times New Roman"
+            style.font.size = Pt(12)
+            
+            # Add professional header with border
+            title = document.add_heading(content.title, level=0)
+            title_run = title.runs[0]
+            title_run.font.size = Pt(18)
+            title_run.font.color.rgb = RGBColor(0, 51, 102)
+            title_run.font.bold = True
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # Add horizontal line after title
+            p = document.add_paragraph()
+            p.paragraph_format.border_top.color = RGBColor(0, 51, 102)
+            p.paragraph_format.border_top.width = Pt(2)
+            
+            for section in content.sections:
+                # Section headers with underline
+                if section.header:
+                    header = document.add_heading(section.header, level=1)
+                    header_run = header.runs[0]
+                    header_run.font.size = Pt(14)
+                    header_run.font.color.rgb = RGBColor(0, 51, 102)
+                    header_run.font.bold = True
                     header_run.font.underline = True
-
-            for p_text in section.paragraphs:
-                p = document.add_paragraph(p_text)
-                p.paragraph_format.space_after = config["after_paragraph_space"]
-                p.paragraph_format.space_before = config["before_paragraph_space"]
-                p.paragraph_format.line_spacing = config["line_spacing"]
-
-            # Add space between sections
-            document.add_paragraph()  # empty para for spacing
-
-        # === SET PAGE MARGINS ===
-        sections = document.sections
-        for section in sections:
-            section.top_margin = Inches(1)
-            section.bottom_margin = Inches(1)
-            section.left_margin = Inches(1.25)
-            section.right_margin = Inches(1.25)
-
+                
+                # Bullet points for formal sections
+                for p_text in section.paragraphs:
+                    p = document.add_paragraph(p_text, style='List Bullet')
+                    p.paragraph_format.left_indent = Inches(0.25)
+                    p.paragraph_format.space_after = Pt(6)
+                    p.paragraph_format.line_spacing = 1.15
+                
+                document.add_paragraph()  # Space between sections
+            
+            # Set narrow margins
+            for section in document.sections:
+                section.top_margin = Inches(1)
+                section.bottom_margin = Inches(1)
+                section.left_margin = Inches(1)
+                section.right_margin = Inches(1)
+        
+        # === ACADEMIC STYLE: Scholarly Paper ===
+        elif config_style == "academic":
+            style.font.name = "Georgia"
+            style.font.size = Pt(12)
+            
+            # Centered title with larger font
+            title = document.add_heading(content.title, level=0)
+            title_run = title.runs[0]
+            title_run.font.size = Pt(16)
+            title_run.font.color.rgb = RGBColor(0, 0, 0)
+            title_run.font.bold = True
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            title.paragraph_format.space_after = Pt(24)
+            
+            # Add author placeholder (common in academic papers)
+            author = document.add_paragraph("Academic Research Paper")
+            author.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            author.paragraph_format.space_after = Pt(24)
+            author_run = author.runs[0]
+            author_run.font.size = Pt(11)
+            author_run.font.italic = True
+            
+            for section in content.sections:
+                # Bold, left-aligned section headers
+                if section.header:
+                    header = document.add_paragraph(section.header)
+                    header_run = header.runs[0]
+                    header_run.font.size = Pt(14)
+                    header_run.font.bold = True
+                    header.paragraph_format.space_before = Pt(18)
+                    header.paragraph_format.space_after = Pt(12)
+                
+                # Justified paragraphs with first-line indent
+                for p_text in section.paragraphs:
+                    p = document.add_paragraph(p_text)
+                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    p.paragraph_format.first_line_indent = Inches(0.5)
+                    p.paragraph_format.space_after = Pt(12)
+                    p.paragraph_format.line_spacing = 2.0  # Double-spaced
+            
+            # Wide margins (typical for academic papers)
+            for section in document.sections:
+                section.top_margin = Inches(1)
+                section.bottom_margin = Inches(1)
+                section.left_margin = Inches(1.5)
+                section.right_margin = Inches(1.5)
+        
+        # === MODERN STYLE: Clean & Minimal ===
+        elif config_style == "modern":
+            style.font.name = "Calibri"
+            style.font.size = Pt(11)
+            
+            # Large, bold title with colored accent
+            title = document.add_heading(content.title, level=0)
+            title_run = title.runs[0]
+            title_run.font.size = Pt(22)
+            title_run.font.color.rgb = RGBColor(41, 128, 185)  # Modern blue
+            title_run.font.bold = True
+            title.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            title.paragraph_format.space_after = Pt(18)
+            
+            for section in content.sections:
+                # Colored section headers with larger spacing
+                if section.header:
+                    header = document.add_paragraph(section.header)
+                    header_run = header.runs[0]
+                    header_run.font.size = Pt(15)
+                    header_run.font.color.rgb = RGBColor(52, 73, 94)  # Dark gray
+                    header_run.font.bold = True
+                    header.paragraph_format.space_before = Pt(14)
+                    header.paragraph_format.space_after = Pt(8)
+                
+                # Short paragraphs with minimal spacing
+                for p_text in section.paragraphs:
+                    p = document.add_paragraph(p_text)
+                    p.paragraph_format.space_after = Pt(8)
+                    p.paragraph_format.line_spacing = 1.3
+                
+                document.add_paragraph()  # Minimal section spacing
+            
+            # Narrow, modern margins
+            for section in document.sections:
+                section.top_margin = Inches(0.75)
+                section.bottom_margin = Inches(0.75)
+                section.left_margin = Inches(1)
+                section.right_margin = Inches(1)
+        
         # === SAVE TO BUFFER ===
         doc_buffer = io.BytesIO()
         document.save(doc_buffer)
@@ -145,7 +195,7 @@ async def generate_docx(content: DocumentContent):
         filename = f"{content.title.replace(' ', '_')}.docx"
         headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
         return StreamingResponse(doc_buffer, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers=headers)
-
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
