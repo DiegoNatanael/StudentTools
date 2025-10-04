@@ -203,24 +203,23 @@ async def generate_pptx(content: PresentationContent):
         
         # === FORMAL STYLE: Black background with white text ===
         if style == "formal":
-            # Title Slide
-            blank_layout = prs.slide_layouts[6]  # Blank layout
+            blank_layout = prs.slide_layouts[6]
             title_slide = prs.slides.add_slide(blank_layout)
             
-            # Black background
             background = title_slide.background
             fill = background.fill
             fill.solid()
             fill.fore_color.rgb = PptRGBColor(0, 0, 0)
             
-            # Title text (centered, white)
+            # Centered title
             title_box = title_slide.shapes.add_textbox(
-                Inches(1), Inches(3), Inches(8), Inches(1.5)
+                Inches(1), Inches(2.8), Inches(8), Inches(2)
             )
             title_frame = title_box.text_frame
             title_frame.text = content.title
+            title_frame.vertical_anchor = 1  # Middle
             title_para = title_frame.paragraphs[0]
-            title_para.font.size = PptPt(44)
+            title_para.font.size = PptPt(48)
             title_para.font.bold = True
             title_para.font.color.rgb = PptRGBColor(255, 255, 255)
             title_para.alignment = 1  # Center
@@ -229,67 +228,65 @@ async def generate_pptx(content: PresentationContent):
             for slide_data in content.slides:
                 slide = prs.slides.add_slide(blank_layout)
                 
-                # Black background
                 background = slide.background
                 fill = background.fill
                 fill.solid()
                 fill.fore_color.rgb = PptRGBColor(0, 0, 0)
                 
-                # Title (white, top)
+                # Title
                 title_box = slide.shapes.add_textbox(
-                    Inches(0.5), Inches(0.5), Inches(9), Inches(0.8)
+                    Inches(0.5), Inches(0.6), Inches(9), Inches(0.9)
                 )
                 title_frame = title_box.text_frame
                 title_frame.text = slide_data.title
                 title_para = title_frame.paragraphs[0]
-                title_para.font.size = PptPt(32)
+                title_para.font.size = PptPt(36)
                 title_para.font.bold = True
                 title_para.font.color.rgb = PptRGBColor(255, 255, 255)
                 
-                # Content (white bullets)
+                # Content with proper spacing
                 content_box = slide.shapes.add_textbox(
-                    Inches(1), Inches(2), Inches(8), Inches(4.5)
+                    Inches(1.2), Inches(1.8), Inches(7.6), Inches(5)
                 )
                 text_frame = content_box.text_frame
                 text_frame.word_wrap = True
                 
-                for point in slide_data.content:
-                    p = text_frame.add_paragraph()
+                for i, point in enumerate(slide_data.content):
+                    p = text_frame.add_paragraph() if i > 0 else text_frame.paragraphs[0]
                     p.text = point
                     p.level = 0
-                    p.font.size = PptPt(20)
+                    p.font.size = PptPt(18)
                     p.font.color.rgb = PptRGBColor(255, 255, 255)
-                    p.space_after = PptPt(12)
+                    p.space_after = PptPt(16)
         
-        # === BUSINESS STYLE: Clean corporate design ===
+        # === BUSINESS STYLE: Clean corporate ===
         elif style == "business":
-            # Title Slide
             blank_layout = prs.slide_layouts[6]
             title_slide = prs.slides.add_slide(blank_layout)
             
-            # White background with blue accent bar
             background = title_slide.background
             fill = background.fill
             fill.solid()
             fill.fore_color.rgb = PptRGBColor(255, 255, 255)
             
-            # Blue accent bar at top
+            # Blue accent bar
             accent_bar = title_slide.shapes.add_shape(
                 MSO_SHAPE.RECTANGLE,
-                Inches(0), Inches(0), Inches(10), Inches(0.5)
+                Inches(0), Inches(0), Inches(10), Inches(0.6)
             )
             accent_bar.fill.solid()
             accent_bar.fill.fore_color.rgb = PptRGBColor(0, 102, 204)
             accent_bar.line.color.rgb = PptRGBColor(0, 102, 204)
             
-            # Title
+            # Centered title
             title_box = title_slide.shapes.add_textbox(
-                Inches(1), Inches(2.5), Inches(8), Inches(2)
+                Inches(1), Inches(2.5), Inches(8), Inches(2.5)
             )
             title_frame = title_box.text_frame
             title_frame.text = content.title
+            title_frame.vertical_anchor = 1
             title_para = title_frame.paragraphs[0]
-            title_para.font.size = PptPt(40)
+            title_para.font.size = PptPt(44)
             title_para.font.bold = True
             title_para.font.color.rgb = PptRGBColor(0, 51, 102)
             title_para.alignment = 1
@@ -298,120 +295,130 @@ async def generate_pptx(content: PresentationContent):
             for slide_data in content.slides:
                 slide = prs.slides.add_slide(blank_layout)
                 
-                # White background
                 background = slide.background
                 fill = background.fill
                 fill.solid()
                 fill.fore_color.rgb = PptRGBColor(255, 255, 255)
                 
-                # Blue accent bar
                 accent_bar = slide.shapes.add_shape(
                     MSO_SHAPE.RECTANGLE,
-                    Inches(0), Inches(0), Inches(10), Inches(0.5)
+                    Inches(0), Inches(0), Inches(10), Inches(0.6)
                 )
                 accent_bar.fill.solid()
                 accent_bar.fill.fore_color.rgb = PptRGBColor(0, 102, 204)
                 accent_bar.line.color.rgb = PptRGBColor(0, 102, 204)
                 
-                # Title
                 title_box = slide.shapes.add_textbox(
-                    Inches(0.5), Inches(1), Inches(9), Inches(0.7)
+                    Inches(0.6), Inches(1.1), Inches(8.8), Inches(0.8)
                 )
                 title_frame = title_box.text_frame
                 title_frame.text = slide_data.title
                 title_para = title_frame.paragraphs[0]
-                title_para.font.size = PptPt(28)
+                title_para.font.size = PptPt(32)
                 title_para.font.bold = True
                 title_para.font.color.rgb = PptRGBColor(0, 51, 102)
                 
-                # Content
                 content_box = slide.shapes.add_textbox(
-                    Inches(1), Inches(2.2), Inches(8), Inches(4.5)
+                    Inches(1.2), Inches(2.2), Inches(7.6), Inches(4.8)
                 )
                 text_frame = content_box.text_frame
                 text_frame.word_wrap = True
                 
-                for point in slide_data.content:
-                    p = text_frame.add_paragraph()
+                for i, point in enumerate(slide_data.content):
+                    p = text_frame.add_paragraph() if i > 0 else text_frame.paragraphs[0]
                     p.text = point
                     p.level = 0
-                    p.font.size = PptPt(18)
+                    p.font.size = PptPt(16)
                     p.font.color.rgb = PptRGBColor(51, 51, 51)
-                    p.space_after = PptPt(12)
+                    p.space_after = PptPt(14)
         
-        # === CREATIVE STYLE: Colorful with visual elements ===
+        # === CREATIVE STYLE: Dynamic and varied ===
         elif style == "creative":
-            # Title Slide
             blank_layout = prs.slide_layouts[6]
-            title_slide = prs.slides.add_slide(blank_layout)
             
-            # Gradient-like background (light blue)
+            # Title Slide
+            title_slide = prs.slides.add_slide(blank_layout)
             background = title_slide.background
             fill = background.fill
             fill.solid()
-            fill.fore_color.rgb = PptRGBColor(240, 248, 255)
+            fill.fore_color.rgb = PptRGBColor(245, 245, 250)
             
-            # Decorative circles
-            circle1 = title_slide.shapes.add_shape(
-                MSO_SHAPE.OVAL,
-                Inches(8), Inches(0.5), Inches(2), Inches(2)
-            )
-            circle1.fill.solid()
-            circle1.fill.fore_color.rgb = PptRGBColor(255, 107, 107)
-            circle1.line.fill.background()
+            # Multiple decorative elements
+            shapes_config = [
+                (Inches(8), Inches(0.3), Inches(2.2), Inches(2.2), PptRGBColor(255, 107, 107)),
+                (Inches(0.1), Inches(5.2), Inches(1.8), Inches(1.8), PptRGBColor(85, 239, 196)),
+                (Inches(7.5), Inches(5.5), Inches(1.2), Inches(1.2), PptRGBColor(253, 203, 110)),
+            ]
             
-            circle2 = title_slide.shapes.add_shape(
-                MSO_SHAPE.OVAL,
-                Inches(0.2), Inches(5.5), Inches(1.5), Inches(1.5)
-            )
-            circle2.fill.solid()
-            circle2.fill.fore_color.rgb = PptRGBColor(85, 239, 196)
-            circle2.line.fill.background()
+            for left, top, width, height, color in shapes_config:
+                circle = title_slide.shapes.add_shape(MSO_SHAPE.OVAL, left, top, width, height)
+                circle.fill.solid()
+                circle.fill.fore_color.rgb = color
+                circle.line.fill.background()
             
-            # Title
+            # Centered title
             title_box = title_slide.shapes.add_textbox(
-                Inches(1), Inches(2.5), Inches(8), Inches(2)
+                Inches(1.5), Inches(2.8), Inches(7), Inches(2)
             )
             title_frame = title_box.text_frame
             title_frame.text = content.title
+            title_frame.vertical_anchor = 1
             title_para = title_frame.paragraphs[0]
-            title_para.font.size = PptPt(42)
+            title_para.font.size = PptPt(46)
             title_para.font.bold = True
             title_para.font.color.rgb = PptRGBColor(88, 24, 69)
             title_para.alignment = 1
             
-            # Content Slides
+            # Content Slides with varied layouts
+            layout_patterns = [
+                {"accent_side": "left", "circle_pos": (Inches(8.5), Inches(0.3))},
+                {"accent_side": "right", "circle_pos": (Inches(0.3), Inches(0.3))},
+                {"accent_side": "left", "circle_pos": (Inches(8.2), Inches(5.8))},
+                {"accent_side": "right", "circle_pos": (Inches(0.5), Inches(5.8))},
+            ]
+            
             colors = [
-                PptRGBColor(255, 107, 107),  # Red
-                PptRGBColor(72, 219, 251),   # Cyan
-                PptRGBColor(85, 239, 196),   # Green
-                PptRGBColor(253, 203, 110),  # Yellow
-                PptRGBColor(162, 155, 254),  # Purple
+                PptRGBColor(255, 107, 107),
+                PptRGBColor(72, 219, 251),
+                PptRGBColor(85, 239, 196),
+                PptRGBColor(253, 203, 110),
+                PptRGBColor(162, 155, 254),
             ]
             
             for idx, slide_data in enumerate(content.slides):
                 slide = prs.slides.add_slide(blank_layout)
                 
-                # Light background
                 background = slide.background
                 fill = background.fill
                 fill.solid()
-                fill.fore_color.rgb = PptRGBColor(250, 250, 250)
+                fill.fore_color.rgb = PptRGBColor(252, 252, 252)
                 
-                # Colorful accent shape (left side)
+                layout = layout_patterns[idx % len(layout_patterns)]
                 accent_color = colors[idx % len(colors)]
-                accent_shape = slide.shapes.add_shape(
-                    MSO_SHAPE.ROUNDED_RECTANGLE,
-                    Inches(0), Inches(0.8), Inches(0.3), Inches(5)
-                )
-                accent_shape.fill.solid()
-                accent_shape.fill.fore_color.rgb = accent_color
-                accent_shape.line.fill.background()
                 
-                # Small decorative circle
+                # Accent bar (alternates sides)
+                if layout["accent_side"] == "left":
+                    accent = slide.shapes.add_shape(
+                        MSO_SHAPE.ROUNDED_RECTANGLE,
+                        Inches(0), Inches(0.8), Inches(0.35), Inches(5.2)
+                    )
+                    content_left = Inches(0.9)
+                else:
+                    accent = slide.shapes.add_shape(
+                        MSO_SHAPE.ROUNDED_RECTANGLE,
+                        Inches(9.65), Inches(0.8), Inches(0.35), Inches(5.2)
+                    )
+                    content_left = Inches(0.6)
+                
+                accent.fill.solid()
+                accent.fill.fore_color.rgb = accent_color
+                accent.line.fill.background()
+                
+                # Decorative circle (varied positions)
                 circle = slide.shapes.add_shape(
                     MSO_SHAPE.OVAL,
-                    Inches(8.5), Inches(0.3), Inches(1.2), Inches(1.2)
+                    layout["circle_pos"][0], layout["circle_pos"][1],
+                    Inches(1.4), Inches(1.4)
                 )
                 circle.fill.solid()
                 circle.fill.fore_color.rgb = accent_color
@@ -419,7 +426,7 @@ async def generate_pptx(content: PresentationContent):
                 
                 # Title
                 title_box = slide.shapes.add_textbox(
-                    Inches(0.8), Inches(0.8), Inches(7.5), Inches(0.8)
+                    content_left, Inches(0.9), Inches(8.2), Inches(0.8)
                 )
                 title_frame = title_box.text_frame
                 title_frame.text = slide_data.title
@@ -430,20 +437,19 @@ async def generate_pptx(content: PresentationContent):
                 
                 # Content
                 content_box = slide.shapes.add_textbox(
-                    Inches(0.8), Inches(2), Inches(8.5), Inches(4.8)
+                    content_left, Inches(2), Inches(8.2), Inches(5)
                 )
                 text_frame = content_box.text_frame
                 text_frame.word_wrap = True
                 
-                for point in slide_data.content:
-                    p = text_frame.add_paragraph()
+                for i, point in enumerate(slide_data.content):
+                    p = text_frame.add_paragraph() if i > 0 else text_frame.paragraphs[0]
                     p.text = point
                     p.level = 0
-                    p.font.size = PptPt(18)
+                    p.font.size = PptPt(15)
                     p.font.color.rgb = PptRGBColor(51, 51, 51)
-                    p.space_after = PptPt(14)
+                    p.space_after = PptPt(12)
         
-        # Save presentation
         ppt_buffer = io.BytesIO()
         prs.save(ppt_buffer)
         ppt_buffer.seek(0)
