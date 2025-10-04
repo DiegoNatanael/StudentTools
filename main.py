@@ -62,19 +62,14 @@ async def generate_docx(content: DocumentContent):
             style.font.name = "Times New Roman"
             style.font.size = Pt(12)
             
-            # Add professional header
+            # Add professional title - NO SEPARATOR
             title = document.add_heading(content.title, level=0)
             title_run = title.runs[0]
             title_run.font.size = Pt(18)
             title_run.font.color.rgb = RGBColor(0, 51, 102)
             title_run.font.bold = True
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            # Add a simple separator line using underscores
-            separator = document.add_paragraph("_" * 80)
-            separator_run = separator.runs[0]
-            separator_run.font.color.rgb = RGBColor(0, 51, 102)
-            separator.paragraph_format.space_after = Pt(12)
+            title.paragraph_format.space_after = Pt(24)
             
             for section in content.sections:
                 # Section headers with underline
@@ -85,17 +80,18 @@ async def generate_docx(content: DocumentContent):
                     header_run.font.color.rgb = RGBColor(0, 51, 102)
                     header_run.font.bold = True
                     header_run.font.underline = True
+                    header.paragraph_format.space_before = Pt(12)
+                    header.paragraph_format.space_after = Pt(8)
                 
-                # Bullet points for formal sections
+                # Regular paragraphs (NO BULLETS)
                 for p_text in section.paragraphs:
-                    p = document.add_paragraph(p_text, style='List Bullet')
-                    p.paragraph_format.left_indent = Inches(0.25)
-                    p.paragraph_format.space_after = Pt(6)
+                    p = document.add_paragraph(p_text)
+                    p.paragraph_format.space_after = Pt(10)
                     p.paragraph_format.line_spacing = 1.15
                 
                 document.add_paragraph()  # Space between sections
             
-            # Set narrow margins
+            # Set margins
             for section in document.sections:
                 section.top_margin = Inches(1)
                 section.bottom_margin = Inches(1)
@@ -107,25 +103,17 @@ async def generate_docx(content: DocumentContent):
             style.font.name = "Georgia"
             style.font.size = Pt(12)
             
-            # Centered title with larger font
+            # Centered title
             title = document.add_heading(content.title, level=0)
             title_run = title.runs[0]
             title_run.font.size = Pt(16)
             title_run.font.color.rgb = RGBColor(0, 0, 0)
             title_run.font.bold = True
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            title.paragraph_format.space_after = Pt(24)
-            
-            # Add author placeholder (common in academic papers)
-            author = document.add_paragraph("Academic Research Paper")
-            author.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            author.paragraph_format.space_after = Pt(24)
-            author_run = author.runs[0]
-            author_run.font.size = Pt(11)
-            author_run.font.italic = True
+            title.paragraph_format.space_after = Pt(36)
             
             for section in content.sections:
-                # Bold, left-aligned section headers
+                # Bold section headers
                 if section.header:
                     header = document.add_paragraph(section.header)
                     header_run = header.runs[0]
@@ -140,9 +128,9 @@ async def generate_docx(content: DocumentContent):
                     p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                     p.paragraph_format.first_line_indent = Inches(0.5)
                     p.paragraph_format.space_after = Pt(12)
-                    p.paragraph_format.line_spacing = 2.0  # Double-spaced
+                    p.paragraph_format.line_spacing = 2.0
             
-            # Wide margins (typical for academic papers)
+            # Wide margins
             for section in document.sections:
                 section.top_margin = Inches(1)
                 section.bottom_margin = Inches(1)
@@ -154,35 +142,35 @@ async def generate_docx(content: DocumentContent):
             style.font.name = "Calibri"
             style.font.size = Pt(11)
             
-            # Large, bold title with colored accent
+            # Large title
             title = document.add_heading(content.title, level=0)
             title_run = title.runs[0]
             title_run.font.size = Pt(22)
-            title_run.font.color.rgb = RGBColor(41, 128, 185)  # Modern blue
+            title_run.font.color.rgb = RGBColor(41, 128, 185)
             title_run.font.bold = True
             title.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            title.paragraph_format.space_after = Pt(18)
+            title.paragraph_format.space_after = Pt(24)
             
             for section in content.sections:
-                # Colored section headers with larger spacing
+                # Colored section headers
                 if section.header:
                     header = document.add_paragraph(section.header)
                     header_run = header.runs[0]
                     header_run.font.size = Pt(15)
-                    header_run.font.color.rgb = RGBColor(52, 73, 94)  # Dark gray
+                    header_run.font.color.rgb = RGBColor(52, 73, 94)
                     header_run.font.bold = True
-                    header.paragraph_format.space_before = Pt(14)
-                    header.paragraph_format.space_after = Pt(8)
+                    header.paragraph_format.space_before = Pt(16)
+                    header.paragraph_format.space_after = Pt(10)
                 
-                # Short paragraphs with minimal spacing
+                # Clean paragraphs
                 for p_text in section.paragraphs:
                     p = document.add_paragraph(p_text)
-                    p.paragraph_format.space_after = Pt(8)
+                    p.paragraph_format.space_after = Pt(10)
                     p.paragraph_format.line_spacing = 1.3
                 
-                document.add_paragraph()  # Minimal section spacing
+                document.add_paragraph()
             
-            # Narrow, modern margins
+            # Narrow margins
             for section in document.sections:
                 section.top_margin = Inches(0.75)
                 section.bottom_margin = Inches(0.75)
