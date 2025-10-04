@@ -62,7 +62,7 @@ async def generate_docx(content: DocumentContent):
             style.font.name = "Times New Roman"
             style.font.size = Pt(12)
             
-            # Add professional header with border
+            # Add professional header
             title = document.add_heading(content.title, level=0)
             title_run = title.runs[0]
             title_run.font.size = Pt(18)
@@ -70,10 +70,11 @@ async def generate_docx(content: DocumentContent):
             title_run.font.bold = True
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
             
-            # Add horizontal line after title
-            p = document.add_paragraph()
-            p.paragraph_format.border_top.color = RGBColor(0, 51, 102)
-            p.paragraph_format.border_top.width = Pt(2)
+            # Add a simple separator line using underscores
+            separator = document.add_paragraph("_" * 80)
+            separator_run = separator.runs[0]
+            separator_run.font.color.rgb = RGBColor(0, 51, 102)
+            separator.paragraph_format.space_after = Pt(12)
             
             for section in content.sections:
                 # Section headers with underline
